@@ -1,0 +1,10 @@
+memory/
+node_modules/
+.env
+.env.local
+*.log
+dist/
+.output/
+.nitro/
+.tanstack/
+generated/

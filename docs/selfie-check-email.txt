@@ -1,0 +1,54 @@
+TO:      developers@toolsforhumanity.com
+SUBJECT: Selfie Check (Beta) access request - ETHOnline 2026 - app_e179f4985c290220a5598b841fd5e3da
+
+---
+
+Hi,
+
+We're requesting Selfie Check (Beta) to be enabled for our app.
+
+  app_id:       app_e179f4985c290220a5598b841fd5e3da
+  rp_id:        rp_4d44df4ba311add1
+  Environments: staging and production (and sandbox if that is a separate grant)
+  Action:       proctor-witness-approval
+  Contact:      <YOUR NAME>, capinho77@gmail.com
+
+Use case
+--------
+We're building Proctor for ETHOnline 2026 and submitting to the World Selfie Check track.
+
+An AI agent performing a high-value action is stopped by a policy gate. Before it can proceed, a
+human witness who is NOT the operator of that agent must approve that specific decision. The
+witness receives a push notification, opens a PWA, and completes Selfie Check with the hash of
+that exact decision passed as the `signal`, so the proof is cryptographically bound to the one
+action being approved and cannot be replayed against another.
+
+We use Selfie Check as an abuse-prevention and eligibility signal, not an identity signal. It is
+what stops the approval step from being satisfied by the agent's own service account, which is the
+failure mode that makes today's human-oversight logs worthless to an auditor.
+
+We are not claiming Selfie Check proves one-person-one-account. Our claim is narrower and
+sufficient: the approver was a live human, and their World ID account is cryptographically distinct
+from the operator's. We record which of the two properties an attestation carries in an explicit
+field.
+
+Why Selfie Check specifically
+-----------------------------
+We need a stable per-witness pseudonym AND a signal-bound proof at the same time. Per the 4.0
+migration guide, v4 nullifiers are one-time-use, so the operator-independence comparison only holds
+on a World ID 3.0 credential. Selfie Check is the only path we found that satisfies both
+requirements, which is why we're asking rather than falling back.
+
+Status
+------
+App, RP and action are created and the relying party is registered. iOS Sandbox enrollment for
+capinho77@gmail.com is submitted and pending. We're building against the simulator on staging in
+the meantime, with the credential preset behind a single environment variable so the switch to
+Selfie Check is a one-line change.
+
+Happy to share the repo or walk through the flow if that's useful. We're also keeping a dated
+feedback log on the Selfie Check docs, Developer Portal and Sandbox as part of the track
+deliverable, and we've already found a few reproducible issues we're glad to send over.
+
+Thanks,
+<YOUR NAME>
