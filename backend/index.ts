@@ -14,6 +14,7 @@ import { FACILITATOR_URL } from './src/config/main-config.ts';
 
 // Workers
 import { startErrorLogCleanupWorker } from './src/workers/errorLogCleanup.ts';
+import { startTtlSweeper } from './src/workers/ttlSweeper.ts';
 
 console.log(
   '======================\n======================\nMY BACKEND SYSTEM STARTED!\n======================\n======================\n'
@@ -72,6 +73,7 @@ const start = async (): Promise<void> => {
 
     // Start workers
     startErrorLogCleanupWorker();
+    startTtlSweeper();
 
     await fastify.listen({
       port: APP_PORT,

@@ -12,6 +12,10 @@ datasource db {
   provider = "postgresql"
 }
 
+// ===========================================================================
+// STARTER MODELS (kept: errorHandler and authMiddleware depend on them)
+// ===========================================================================
+
 model User {
   id            String   @id @default(cuid())
   walletAddress String   @unique
@@ -37,4 +41,418 @@ model ErrorLog {
 
   @@index([errorCode])
   @@index([createdAt])
+}
+
+// ===========================================================================
+// PROCTOR
+//
+// Design constraints that shaped everything below:
+//
+//  - Nullifiers are Decimal(78,0), NEVER String. Hex casing and 0x-prefix
+//    differences silently produce two rows for one human. Convert at the
+//    boundary, once.
+//  - Money is Decimal(38,18). No floats anywhere, ever.
+//  - Postgres is the INDEX, HCS is the TRUTH. The mirror node cannot filter on
+//    anything inside a message payload, so every row carries the sequence
+//    number and consensus timestamp needed to re-fetch and re-verify.
+//  - Every state transition writes a DecisionEvent. That log is what makes a
+//    stuck decision debuggable at 2am on day 8.
+//  - Deletion is soft (revokedAt), never DELETE. Evidence is append-only.
+// ===========================================================================
+
+enum DecisionState {
+  PENDING_PAYMENT // 402 issued, no valid payment yet
+  OPEN            // gate payment settled, not yet dispatched
+  DISPATCHED      // witness has it on a phone, TTL running
+  APPROVED        // witness approved inside TTL, proof verified
+  REFUSED         // witness explicitly refused inside TTL
+  EXPIRED         // TTL elapsed with no valid response. THE DEFAULT OUTCOME
+  FAILED          // internal error. NEVER releases the agent
+}
+
+enum DecisionOutcome {
+  APPROVE
+  REFUSE
+  EXPIRE
+}
+
+enum WitnessState {
+  ENROLLED
+  SUSPENDED
+  REVOKED
+}
+
+/// Which credential produced the proof. Decides whether the nullifier is a
+/// stable pseudonym: v3 credentials yes, v4 uniqueness proofs no.
+enum WitnessMode {
+  SELFIE          // selfieCheckLegacy, v3 proof, stable nullifier. The plan.
+  ORB_PRESENCE    // proofOfHuman + require_user_presence, v4. Fallback.
+  DEVICE_DEV_ONLY // deviceLegacy. Local plumbing and the simulator only.
+}
+
+enum PaymentLeg {
+  GATE        // agent pays to open the decision. Hedera exact.
+  METER       // agent pays for elapsed review seconds.
+  WITNESS_FEE // treasury pays the witness.
+}
+
+enum PaymentRail {
+  HEDERA_X402_EXACT
+  ARC_X402_NANOPAYMENT
+  CIRCLE_WALLETS_TRANSFER
+}
+
+enum PaymentState {
+  QUOTED
+  VERIFIED // facilitator accepted the payload, not yet on chain
+  SETTLING
+  SETTLED
+  DENIED   // Circle risk screening, or an Arc blocklist revert
+  FAILED
+}
+
+enum AttestationState {
+  PENDING
+  SUBMITTED
+  CONFIRMED // mirror node returned it AND the running hash matched
+  FAILED
+}
+
+// --------------------------------------------------------------- identity
+
+/// The deployer of the AI system. The party being audited.
+model Org {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The operator's World ID nullifier under the fixed action. Enrolled ONCE,
+  /// out of band, before any decision exists. Every witness nullifier is
+  /// compared against this. A decision must not be created for an org with no
+  /// operatorEnrolledAt, because the attestation's `on` field is non-nullable.
+  operatorNullifier  Decimal?  @db.Decimal(78, 0)
+  operatorEnrolledAt DateTime?
+
+  apiKeys   ApiKey[]
+  agents    Agent[]
+  witnesses Witness[]
+  decisions Decision[]
+
+  @@index([slug])
+}
+
+model ApiKey {
+  id        String    @id @default(cuid())
+  orgId     String
+  org       Org       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  /// argon2id of the key. The plaintext is shown exactly once.
+  hash      String    @unique
+  label     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Soft delete. Never remove the row: it may be referenced by evidence.
+  revokedAt DateTime?
+
+  @@index([orgId, revokedAt])
+}
+
+/// The AI agent whose actions are gated.
+model Agent {
+  id      String @id @default(cuid())
+  orgId   String
+  org     Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  label   String
+
+  /// HCS-14 universal agent id, generated per the draft spec.
+  /// uaid:aid:<base58(sha384)>;registry=proctor;nativeId=hedera:testnet:0.0.X
+  uaid String @unique
+
+  /// Where the agent pays the gate leg from.
+  hederaAccountId String?
+  arcAddress      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  revokedAt DateTime?
+
+  decisions Decision[]
+
+  @@index([orgId, revokedAt])
+}
+
+// -------------------------------------------------------------- witnesses
+
+/// The rota. NEVER call it a marketplace: nobody lets an anonymous stranger
+/// approve EUR 41,200, and Proctor does not propose that they should.
+model Witness {
+  id    String @id @default(cuid())
+  orgId String
+  org   Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  /// Stable World ID pseudonym under the fixed action. Decimal, never String.
+  /// NOT unique with action: a witness is SUPPOSED to approve many times.
+  nullifier Decimal @db.Decimal(78, 0)
+
+  /// Human-readable label held by the org. Never published to HCS.
+  label String
+  role  String       @default("standard")
+  state WitnessState @default(ENROLLED)
+
+  /// Payout destinations. Hedera is the no-Arc fallback path.
+  /// NOTE: a recipient that has never held USDC cannot receive it. Prefer a
+  /// hollow account (maxAutoAssociations = -1 by default under HIP-904).
+  hederaAccountId String?
+  circleWalletId  String?
+  arcAddress      String?
+
+  /// Web Push subscription. One row per device would be cleaner; a witness has
+  /// one demo phone and this is a nine-day build.
+  pushEndpoint String?
+  pushP256dh   String?
+  pushAuth     String?
+
+  /// Proves the enrolment predates any decision it witnessed.
+  enrolledAt      DateTime  @default(now())
+  enrolmentTxHash String?
+  /// Last verified proof. Used to enforce the 90-day Selfie Check inactivity
+  /// window ourselves, since World never rejects a stale one.
+  lastVerifiedAt  DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  decisions Decision[]
+  proofs    WorldProof[]
+  payments  Payment[]
+
+  @@unique([orgId, nullifier])
+  @@index([orgId, state, role])
+  @@index([nullifier])
+}
+
+// --------------------------------------------------------------- decision
+
+model Decision {
+  id      String @id @default(cuid())
+  orgId   String
+  org     Org    @relation(fields: [orgId], references: [id])
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  state   DecisionState    @default(PENDING_PAYMENT)
+  outcome DecisionOutcome?
+
+  /// The canonical JSON the witness attests to. Stored in full because the
+  /// Article 12 export must be human readable.
+  preimage Json
+  /// keccak256(utf8(canonical(preimage))). THIS IS THE WORLD `signal`.
+  /// Unique, not merely indexed: if two decisions shared a hash, a proof for
+  /// one would verify against the other.
+  decisionHash String @unique
+  /// The single line rendered on the phone.
+  humanLine String
+  /// Single-use randomness inside the preimage. Makes two identical payments
+  /// distinct, which is what makes the hash collision impossible.
+  nonce String @unique
+
+  /// Copied from the policy at fire time, so evidence shows the rule that ran.
+  requiredRole String @default("standard")
+  policyReason String?
+  /// sha256 of the canonicalised policy rules. Goes into the attestation.
+  policyHash   String?
+
+  /// Opaque bearer token in the push deep link. Hashed at rest.
+  witnessTokenHash String   @unique
+  witnessId        String?
+  witness          Witness? @relation(fields: [witnessId], references: [id])
+
+  /// THE CLOCK. Server authoritative. Every TTL decision is made against
+  /// expiresAt, never against a client-supplied timestamp.
+  issuedAt     DateTime  @default(now())
+  dispatchedAt DateTime?
+  expiresAt    DateTime
+  respondedAt  DateTime?
+  releasedAt   DateTime?
+
+  /// dispatchedAt -> respondedAt in ms. Drives the meter price.
+  reviewMs Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  proof       WorldProof?
+  attestation Attestation?
+  payments    Payment[]
+  events      DecisionEvent[]
+
+  @@index([orgId, issuedAt(sort: Desc)])
+  @@index([orgId, outcome, issuedAt(sort: Desc)])
+  @@index([agentId, issuedAt(sort: Desc)])
+  @@index([witnessId, issuedAt(sort: Desc)])
+  /// The TTL sweeper's ONLY query. Keep it index-backed.
+  @@index([state, expiresAt])
+}
+
+/// Append-only. Every state transition, every error, every external call.
+model DecisionEvent {
+  id         String   @id @default(cuid())
+  decisionId String
+  decision   Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  at         DateTime @default(now())
+  /// "state.APPROVED", "x402.settle.ok", "world.verify.signal_mismatch"
+  kind       String
+  detail     Json?
+
+  @@index([decisionId, at])
+  @@index([kind])
+}
+
+// ------------------------------------------------------------------ world
+
+model WorldProof {
+  id         String   @id @default(cuid())
+  /// The CORRECT uniqueness constraint. NOT (nullifier, action): a witness
+  /// approves many decisions, and one decision is proved exactly once.
+  decisionId String   @unique
+  decision   Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  witnessId  String
+  witness    Witness  @relation(fields: [witnessId], references: [id])
+
+  /// The IDKitResult byte for byte as received. NEVER re-serialised, NEVER
+  /// normalised. Published in the export so a third party re-verifies it
+  /// against World's own endpoint rather than against us.
+  raw       Json
+  /// sha256 of exactly those bytes. Goes into the attestation as `wid`.
+  rawDigest String
+
+  signalHash            String
+  identifier            String  // "selfie"
+  protocolVersion       String  // "3.0"
+  nullifier             Decimal @db.Decimal(78, 0)
+  userPresenceCompleted Boolean @default(false)
+  mode                  WitnessMode
+
+  /// World's clock, not ours.
+  portalVerifiedAt DateTime?
+  receivedAt       DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+
+  @@index([witnessId, receivedAt])
+  @@index([nullifier])
+}
+
+/// Single-use RP signing nonces. Reuse returns duplicate_nonce from World.
+model RpNonce {
+  nonce      String    @id
+  action     String
+  decisionId String?
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  usedAt     DateTime?
+
+  @@index([expiresAt])
+  @@index([decisionId])
+}
+
+// ------------------------------------------------------------------ money
+
+model Payment {
+  id         String   @id @default(cuid())
+  decisionId String
+  decision   Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  witnessId  String?
+  witness    Witness? @relation(fields: [witnessId], references: [id])
+
+  leg   PaymentLeg
+  rail  PaymentRail
+  state PaymentState @default(QUOTED)
+
+  /// Human units, e.g. "0.42". Atomic conversion happens at the rail boundary
+  /// only. Never a float.
+  amountUsd    Decimal @db.Decimal(38, 18)
+  /// Atomic units as a string, exactly what went on the wire.
+  amountAtomic String
+  asset        String  // "0.0.429274"
+  network      String  // CAIP-2: "hedera:testnet"
+  payTo        String
+  /// Bound to the gate payment's payer. A mismatch is 403 payer_mismatch:
+  /// nothing in x402 links the two calls of the gate protocol together.
+  payer        String?
+
+  /// Hedera transaction id, Arc EIP-3009 nonce, or Circle transaction id.
+  externalId    String?
+  txHash        String?
+  explorerUrl   String?
+  /// Facilitator or Circle error reason, verbatim.
+  failureReason String?
+
+  quotedAt   DateTime  @default(now())
+  verifiedAt DateTime?
+  settledAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  /// Exactly one gate payment and one meter payment per decision. A duplicate
+  /// settle attempt hits the constraint rather than paying twice.
+  @@unique([decisionId, leg])
+  @@index([witnessId, settledAt])
+  @@index([state, quotedAt])
+  @@index([externalId])
+}
+
+// --------------------------------------------------------------- evidence
+
+model Attestation {
+  id         String   @id @default(cuid())
+  decisionId String   @unique
+  decision   Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  state AttestationState @default(PENDING)
+
+  /// The exact UTF-8 bytes submitted to HCS. Asserted under 1024 so it is one
+  /// chunk: one sequence number, one consensus timestamp, one running-hash
+  /// link, and a verification story a judge can follow.
+  body       String
+  bodyBytes  Int
+  /// sha384 of body. Cheap local integrity check before touching the mirror.
+  bodyDigest String
+
+  /// EIP-712 signature over the attestation core.
+  attestorSig     String
+  attestorAddress String
+
+  topicId        String
+  sequenceNumber BigInt?
+  /// "seconds.nanos". The external clock we did not choose.
+  consensusTimestamp String?
+  /// 48 bytes base64 straight from the receipt, compared against the mirror.
+  runningHash        String?
+  runningHashVersion Int?
+  transactionId      String?
+  explorerUrl        String?
+
+  submittedAt DateTime?
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([topicId, sequenceNumber])
+  @@index([state])
+  @@index([consensusTimestamp])
+}
+
+/// Exactly-once for every mutating agent-facing call.
+model IdempotencyKey {
+  key          String   @id
+  orgId        String
+  route        String
+  requestHash  String
+  responseBody Json?
+  statusCode   Int?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([expiresAt])
 }
