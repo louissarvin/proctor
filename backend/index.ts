@@ -5,7 +5,12 @@ import FastifyCors from '@fastify/cors';
 import { APP_PORT } from './src/config/main-config.ts';
 
 // Routes
-import { exampletRoute } from './src/routes/exampleRoutes.ts';
+import { gateRoutes } from './src/routes/gateRoutes.ts';
+
+// x402
+import { paymentMiddleware } from '@x402/fastify';
+import { buildX402Server, filterSupportedAccepts, hederaGateOption } from './src/lib/x402/server.ts';
+import { FACILITATOR_URL } from './src/config/main-config.ts';
 
 // Workers
 import { startErrorLogCleanupWorker } from './src/workers/errorLogCleanup.ts';
@@ -35,12 +40,36 @@ fastify.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
 });
 
 // Register routes with prefixes
-// Example: fastify.register(adminRoutes, { prefix: '/admin' })
-// Example: fastify.register(userRoutes, { prefix: '/user' })
-fastify.register(exampletRoute, { prefix: '/example' });
+fastify.register(gateRoutes, { prefix: '/v1/gate' });
 
 const start = async (): Promise<void> => {
   try {
+    // ---------------------------------------------------------------------
+    // x402 paywall.
+    //
+    // The preflight below is not optional. A facilitator that is unreachable
+    // does NOT degrade: it takes the whole route down, including entries a
+    // healthy facilitator serves, with a bare 500 on every request. boot looks
+    // clean because initialize() swallows the failure and paymentMiddleware()
+    // validates lazily, then throws asynchronously where setErrorHandler
+    // cannot catch it.
+    // ---------------------------------------------------------------------
+    console.log(`[x402] facilitator: ${FACILITATOR_URL}`);
+    const x402Server = await buildX402Server();
+    const accepts = filterSupportedAccepts(x402Server, [hederaGateOption()]);
+
+    paymentMiddleware(
+      fastify,
+      {
+        'POST /v1/gate/decisions': {
+          accepts: accepts as never,
+          description: 'Proctor human oversight decision',
+          mimeType: 'application/json',
+        },
+      } as never,
+      x402Server,
+    );
+
     // Start workers
     startErrorLogCleanupWorker();
 
