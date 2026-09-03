@@ -19,10 +19,17 @@
   "description": "",
   "dependencies": {
     "@fastify/cors": "^11.0.0",
+    "@hiero-ledger/sdk": "2.85.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "@solana/wallet-standard-util": "^1.1.2",
     "@solana/web3.js": "^1.98.0",
+    "@worldcoin/idkit-core": "4.2.4",
+    "@x402/core": "2.24.0",
+    "@x402/evm": "2.24.0",
+    "@x402/fastify": "2.24.0",
+    "@x402/fetch": "2.24.0",
+    "@x402/hedera": "2.24.0",
     "axios": "^1.7.9",
     "bs58": "^6.0.0",
     "dotenv": "^16.4.7",
@@ -31,7 +38,10 @@
     "jsonwebtoken": "^9.0.2",
     "nanoid": "^5.0.9",
     "node-cron": "^3.0.3",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "viem": "^2",
+    "web-push": "^3",
+    "zod": "^4"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -39,9 +49,17 @@
     "@types/node": "^22.10.10",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.11.0",
+    "@types/web-push": "^3.6.4",
     "bun-types": "latest",
     "eslint": "^8.57.0",
     "prisma": "^7.0.0",
     "typescript": "^5.7.3"
-  }
+  },
+  "resolutions": {
+    "@hiero-ledger/sdk": "2.85.0"
+  },
+  "trustedDependencies": [
+    "esbuild",
+    "lightningcss"
+  ]
 }
