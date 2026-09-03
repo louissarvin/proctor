@@ -85,6 +85,13 @@ export const WORLD_ENVIRONMENT: string = opt('WORLD_ENVIRONMENT', 'staging');
 /** DEVICE until the Selfie Check beta flag is granted, then SELFIE. One variable. */
 export const WORLD_MODE: 'DEVICE' | 'SELFIE' = (opt('WORLD_MODE', 'DEVICE') as 'DEVICE' | 'SELFIE');
 
+// --- attestation -----------------------------------------------------------
+/** SECRET. EIP-712 signing key for attestations. Distinct from the World RP key. */
+export const ATTESTOR_PRIVATE_KEY: string = opt('ATTESTOR_PRIVATE_KEY');
+export const ATTESTATION_SPEC_VERSION: number = 1;
+/** Hard ceiling. One HCS chunk is 1024 bytes; above that a message splits. */
+export const ATTESTATION_MAX_BYTES: number = 1024;
+
 // --- policy ----------------------------------------------------------------
 /** The gate fails CLOSED. If nothing answers within the TTL, the outcome is REFUSE. */
 export const DECISION_TTL_SECONDS: number = Number(opt('DECISION_TTL_SECONDS', '60'));
