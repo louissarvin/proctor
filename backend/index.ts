@@ -6,6 +6,8 @@ import { APP_PORT } from './src/config/main-config.ts';
 
 // Routes
 import { gateRoutes } from './src/routes/gateRoutes.ts';
+import { evidenceRoutes } from './src/routes/evidenceRoutes.ts';
+import { wellKnownRoutes } from './src/routes/wellKnownRoutes.ts';
 
 // x402
 import { paymentMiddleware } from '@x402/fastify';
@@ -42,6 +44,8 @@ fastify.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
 
 // Register routes with prefixes
 fastify.register(gateRoutes, { prefix: '/v1/gate' });
+fastify.register(evidenceRoutes, { prefix: '/v1/evidence' });
+fastify.register(wellKnownRoutes, { prefix: '/.well-known' });
 
 const start = async (): Promise<void> => {
   try {
