@@ -1,0 +1,13 @@
+{
+  "name": "@proctor/verify",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Offline verification of Proctor evidence. ZERO dependencies by design.",
+  "bin": {
+    "proctor-verify": "./bin/verify.ts"
+  },
+  "scripts": {
+    "verify": "bun bin/verify.ts"
+  },
+  "dependencies": {}
+}
