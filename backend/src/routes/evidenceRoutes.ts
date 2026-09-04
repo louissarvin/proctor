@@ -15,6 +15,7 @@ import { prismaQuery } from '../lib/prisma.ts';
 import { handleError } from '../utils/errorHandler.ts';
 import { buildExport, type ExportRecord, type RawMirrorMessage } from '../lib/evidence/export.ts';
 import { attestorAccount } from '../lib/attestation/build.ts';
+import { toTaskView, type DecisionStateName } from '../lib/a2a/taskState.ts';
 import {
   HEDERA_TOPIC_ID, MIRROR_NODE_URL, WORLD_RP_ID, WORLD_VERIFY_URL, HASHSCAN_BASE,
 } from '../config/main-config.ts';
@@ -58,6 +59,9 @@ export const evidenceRoutes: FastifyPluginCallback = (app: FastifyInstance, _opt
       data: {
         decisions: rows.map((d) => ({
           ...d,
+          // A2A view alongside our own state, so another agent can read the
+          // lifecycle without learning Proctor's vocabulary.
+          a2a: toTaskView(d.id, d.state as DecisionStateName, d.humanLine),
           // Every row is independently re-fetchable. That is the point.
           sequenceNumber: d.attestation?.sequenceNumber?.toString() ?? null,
           consensusTimestamp: d.attestation?.consensusTimestamp ?? null,
