@@ -1,52 +1,146 @@
 # Verifiable artefacts
 
-Every claim here is checkable by a third party. Facilitator named per link, because
-Hedera's qualification bullet names one specifically.
+Every claim below is checkable by a third party without contacting Proctor.
+All artefacts are on **Hedera testnet**, created 2026-09-04.
 
-## x402 gate
+---
 
-| Artefact | Facilitator | Link |
-|---|---|---|
-| Gate payment settlement tx | **Blocky402** (`api.testnet.blocky402.com`) | _pending: needs treasury account_ |
-| Meter payment settlement tx | TBD by `METER_MODE` | _pending_ |
+## The evidence log
 
-**Proof the gate settles through Blocky402**, from a live 402 issued by this repo on 2026-09-03.
-`extra.feePayer` is injected by the library from the facilitator's own `/supported` response, so it
-cannot be faked in source:
+| Artefact | Value |
+|---|---|
+| **Evidence topic** | [`0.0.10359381`](https://hashscan.io/testnet/topic/0.0.10359381) |
+| Memo | `Proctor oversight evidence log v1` |
+| Admin key | **none** |
+| Submit key | ECDSA, operator-held |
+| Creation tx | `0.0.10349667@1788500920.243958466` |
+
+**No admin key.** Per Hedera's documentation, *"if no adminKey is specified the
+topic is immutable"*. The topic cannot be updated or deleted by anyone,
+**including us**. There is no undo, which is why the memo was fixed first.
+
+**Why a submit key, and what it does not buy.** Without one, any account on
+Hedera could append to this log and an auditor could not distinguish a genuine
+attestation from an attacker's. We hold it, so we can still write a *false*
+entry. What HCS prevents is us **retroactively editing or deleting** what we
+already wrote, and it binds every entry to a timestamp we did not choose.
+
+---
+
+## Verify it yourself, in one command
+
+```bash
+bun verify/bin/verify.ts --topic 0.0.10359381
+```
+
+```
+PASS  4 messages, chain intact from genesis.
+      No message was inserted, removed, reordered, or altered.
+```
+
+Zero dependencies, `node:crypto` only. It contacts the public mirror node and
+nothing of ours.
+
+### Tamper detection, run against this exact topic
+
+| Attack | Result |
+|---|---|
+| One bit flipped in sequence 4 | `FAIL at seq 4 (running hash mismatch)` |
+| **The refusal at sequence 2 deleted** | `FAIL at seq 3 (sequence gap: expected 2, got 3)` |
+
+The second row is the one that matters: **an inconvenient refusal cannot be
+quietly removed.**
+
+---
+
+## The records on the topic
+
+| Seq | Outcome | Bytes | `wid` | `ind` |
+|---|---|---|---|---|
+| 1 | APPROVE | 702 | present | crypto |
+| 2 | REFUSE | 621 | **null** | policy |
+| 3 | EXPIRE | 619 | **null** | policy |
+| 4 | APPROVE | 702 | present | crypto |
+
+All under the 1024-byte single-chunk ceiling, so each is one sequence number
+and one consensus timestamp.
+
+`wid: null` on a refusal is **correct, not missing**: refuse is the default
+outcome and requires no liveness proof. `ind` records whether witness/operator
+independence is cryptographic or a policy property of the rota, rather than
+blurring the two.
+
+---
+
+## Measured: mirror node lag
+
+Measured on this topic, 2026-09-04, submit to mirror-node confirmation:
+
+```
+min 725ms   p50 865ms   max 1663ms
+```
+
+**This contradicts our earlier research**, which recorded p50 4100ms and
+advised holding roughly five seconds before opening a HashScan link on camera.
+The measured figure is four to five times faster.
+
+**Demo consequence:** a HashScan link is safe to open about two seconds after
+consensus rather than five. Re-measure on the day, on the venue network, before
+committing the shot.
+
+---
+
+## The x402 gate
+
+**Proof the gate settles through Blocky402**, from a live 402 issued by this
+repo. `extra.feePayer` is injected by the library from the facilitator's own
+`/supported` response, so it identifies the settling facilitator as a fact
+rather than a claim:
 
 ```json
 {
   "x402Version": 2,
-  "resource": { "url": "http://localhost:3700/v1/gate/decisions",
-                "description": "Proctor human oversight decision" },
   "accepts": [{
     "scheme": "exact",
     "network": "hedera:testnet",
     "amount": "420000",
     "asset": "0.0.429274",
-    "payTo": "0.0.9185803",
+    "payTo": "0.0.10349677",
     "maxTimeoutSeconds": 180,
     "extra": { "feePayer": "0.0.7162784" }
   }]
 }
 ```
 
-| Field | Where it came from |
+| Field | Origin |
 |---|---|
-| `extra.feePayer` = `0.0.7162784` | **Blocky402's** fee payer, from their live `/supported`. `x402.org` would show `0.0.9185802` |
-| `amount` = `420000` | library converted `price: "$0.42"`. No hand-rolled decimal maths |
-| `asset` = `0.0.429274` | resolved by `ExactHederaScheme`, never hardcoded |
+| `extra.feePayer` `0.0.7162784` | **Blocky402's** fee payer. `x402.org` would show `0.0.9185802` |
+| `amount` `420000` | library converted `price: "$0.42"` |
+| `asset` `0.0.429274` | resolved by `ExactHederaScheme`; USDC on Hedera is an **HTS token**, so every settlement moves HTS |
 
-## HCS evidence log
-
-| Artefact | Link |
+| Artefact | Status |
 |---|---|
-| Proctor evidence topic (no admin key) | _pending: needs operator account_ |
-| Reference topic used to prove the verifier | [`0.0.4320226`](https://hashscan.io/testnet/topic/0.0.4320226) |
+| Gate payment settlement tx | _pending: needs the paying agent_ |
 
-Verifier reproduces the running hash chain for all 45 messages of `0.0.4320226` from genesis:
+---
+
+## Accounts
+
+| Role | Account | Type |
+|---|---|---|
+| Operator | [`0.0.10349667`](https://hashscan.io/testnet/account/0.0.10349667) | ECDSA secp256k1 |
+| Treasury (`payTo`) | [`0.0.10349677`](https://hashscan.io/testnet/account/0.0.10349677) | ECDSA secp256k1 |
+
+Both carry `maxAutomaticTokenAssociations = -1`, so they accept HTS tokens
+including USDC `0.0.429274` without an explicit association step.
+
+---
+
+## Agent identity, HCS-14 (draft)
 
 ```
-$ bun verify/bin/verify.ts --topic 0.0.4320226
-PASS  45 messages, chain intact from genesis.
+uaid:aid:9373hj8Dco351vuqrK3p4veDXreeN6848f5A2qQKBdQK4Azmi2BL7UB7rA3Fwiq4KU;uid=0;registry=proctor;proto=x402;nativeId=hedera:testnet:0.0.10349677
 ```
+
+Generated per the draft specification, SHA-384 then Base58, with a fixed test
+vector in `backend/test/uaid.test.ts` so any reader can reproduce the string.
