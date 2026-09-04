@@ -1,0 +1,17 @@
+{
+  "name": "@proctor/agent",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "The paying agent. Stops on a 402, pays, and proceeds.",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "pay": "bun src/index.ts"
+  },
+  "dependencies": {
+    "@x402/core": "2.24.0",
+    "@x402/fetch": "2.24.0",
+    "@x402/hedera": "2.24.0",
+    "@hiero-ledger/sdk": "2.85.0"
+  }
+}
