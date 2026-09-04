@@ -92,6 +92,15 @@ export const ATTESTATION_SPEC_VERSION: number = 1;
 /** Hard ceiling. One HCS chunk is 1024 bytes; above that a message splits. */
 export const ATTESTATION_MAX_BYTES: number = 1024;
 
+// --- Web Push (VAPID) --------------------------------------------------------
+export const VAPID_PUBLIC_KEY: string = opt('VAPID_PUBLIC_KEY');
+/** SECRET. */
+export const VAPID_PRIVATE_KEY: string = opt('VAPID_PRIVATE_KEY');
+export const VAPID_SUBJECT: string = opt('VAPID_SUBJECT', 'mailto:dev@proctor.local');
+
+/** Base URL the witness PWA is served from, used to build the deep link. */
+export const WITNESS_APP_URL: string = opt('WITNESS_APP_URL', 'http://localhost:3200');
+
 // --- policy ----------------------------------------------------------------
 /** The gate fails CLOSED. If nothing answers within the TTL, the outcome is REFUSE. */
 export const DECISION_TTL_SECONDS: number = Number(opt('DECISION_TTL_SECONDS', '60'));

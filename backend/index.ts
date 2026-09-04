@@ -7,6 +7,7 @@ import { APP_PORT } from './src/config/main-config.ts';
 // Routes
 import { gateRoutes } from './src/routes/gateRoutes.ts';
 import { evidenceRoutes } from './src/routes/evidenceRoutes.ts';
+import { witnessRoutes } from './src/routes/witnessRoutes.ts';
 import { wellKnownRoutes } from './src/routes/wellKnownRoutes.ts';
 
 // x402
@@ -44,6 +45,7 @@ fastify.get('/', async (_request: FastifyRequest, reply: FastifyReply) => {
 
 // Register routes with prefixes
 fastify.register(gateRoutes, { prefix: '/v1/gate' });
+fastify.register(witnessRoutes, { prefix: '/v1/witness' });
 fastify.register(evidenceRoutes, { prefix: '/v1/evidence' });
 fastify.register(wellKnownRoutes, { prefix: '/.well-known' });
 

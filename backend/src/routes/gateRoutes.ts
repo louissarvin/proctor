@@ -18,6 +18,12 @@
  */
 import type { FastifyInstance, FastifyPluginCallback, FastifyRequest, FastifyReply } from 'fastify';
 import { evaluatePolicy, DEMO_POLICY, type AgentAction } from '../lib/policy/evaluate.ts';
+import { prismaQuery } from '../lib/prisma.ts';
+import type { Prisma } from '../../prisma/generated/client.js';
+import { decisionHash, policyHash } from '../lib/attestation/hash.ts';
+import { mintWitnessToken, mintNonce, dispatchDecision, recordEvent } from '../lib/decision/lifecycle.ts';
+import { selectWitness, dispatchToWitness } from '../lib/witness/dispatch.ts';
+import { toTaskView } from '../lib/a2a/taskState.ts';
 import { handleError } from '../utils/errorHandler.ts';
 import { validateRequiredFields } from '../utils/validationUtils.ts';
 import { GATE_PRICE_USD, DECISION_TTL_SECONDS } from '../config/main-config.ts';
@@ -68,22 +74,100 @@ export const gateRoutes: FastifyPluginCallback = (app: FastifyInstance, _opts, d
   app.post('/decisions', async (request: FastifyRequest, reply: FastifyReply) => {
     const ctx = (request as FastifyRequest & { x402Context?: Record<string, unknown> }).x402Context;
 
-    // Defence in depth: if the middleware were ever misconfigured, do not
-    // silently serve a paid resource for free.
-    if (!ctx) {
-      return handleError(reply, 402, 'Payment required', 'PAYMENT_REQUIRED');
+    // Defence in depth. If the middleware were ever misconfigured, never serve
+    // a paid resource for free.
+    if (!ctx) return handleError(reply, 402, 'Payment required', 'PAYMENT_REQUIRED');
+
+    const body = request.body as { action?: AgentAction; orgSlug?: string };
+    const action = body.action;
+    if (!action?.kind || !action?.amount || !action?.counterparty) {
+      return handleError(reply, 400, 'action requires kind, amount, counterparty', 'INVALID_ACTION');
     }
 
-    const payload = ctx.paymentPayload as { payer?: string } | undefined;
+    const org = await prismaQuery.org.findFirst({
+      where: body.orgSlug ? { slug: body.orgSlug } : {},
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!org) return handleError(reply, 404, 'No organisation configured', 'ORG_NOT_FOUND');
+
+    // The attestation commits to the operator nullifier, so a decision cannot
+    // be opened for an org that never enrolled one. Refusing here beats
+    // producing evidence that cannot state who the operator was.
+    if (!org.operatorEnrolledAt || org.operatorNullifier === null) {
+      return handleError(reply, 409, 'Operator not enrolled for this organisation', 'OPERATOR_NOT_ENROLLED');
+    }
+
+    const agent = await prismaQuery.agent.findFirst({ where: { orgId: org.id, revokedAt: null } });
+    if (!agent) return handleError(reply, 404, 'No agent registered', 'AGENT_NOT_FOUND');
+
+    const decisionPolicy = evaluatePolicy(action, DEMO_POLICY);
+    const nonce = mintNonce();
+    const { token, hash } = mintWitnessToken();
+
+    // The preimage is what the witness attests to, and what a third party
+    // re-hashes from the export. The nonce makes two identical actions distinct.
+    const preimage = {
+      action,
+      nonce,
+      orgSlug: org.slug,
+      agentUaid: agent.uaid,
+      issuedAt: new Date().toISOString(),
+    };
+
+    const decision = await prismaQuery.decision.create({
+      data: {
+        orgId: org.id,
+        agentId: agent.id,
+        state: 'OPEN',
+        // Prisma's InputJsonValue needs an index signature; our typed shapes
+        // do not have one. The value is plain JSON either way.
+        preimage: preimage as unknown as Prisma.InputJsonObject,
+        decisionHash: decisionHash(preimage),
+        humanLine: decisionPolicy.humanLine,
+        nonce,
+        requiredRole: 'standard',
+        policyReason: decisionPolicy.reason,
+        policyHash: policyHash(DEMO_POLICY),
+        witnessTokenHash: hash,
+        // Overwritten by dispatchDecision, which sets the authoritative clock.
+        expiresAt: new Date(Date.now() + DECISION_TTL_SECONDS * 1000),
+      },
+    });
+
+    const payer = (ctx.paymentPayload as { payer?: string } | undefined)?.payer ?? null;
+    await recordEvent(decision.id, 'gate.paid', { payer });
+
+    // Select from the rota and dispatch.
+    const witness = await selectWitness(org.id, decision.requiredRole);
+    if (!witness) {
+      await recordEvent(decision.id, 'dispatch.no_witness_available');
+      return handleError(reply, 503, 'No witness available', 'NO_WITNESS_AVAILABLE');
+    }
+
+    const dispatched = await dispatchDecision(decision.id, witness.id, DECISION_TTL_SECONDS);
+    if (!dispatched.ok) return handleError(reply, 409, 'Could not dispatch', 'DISPATCH_FAILED');
+
+    const fresh = await prismaQuery.decision.findUniqueOrThrow({ where: { id: decision.id } });
+    const push = await dispatchToWitness(witness, token, decision.humanLine, fresh.expiresAt);
+    await recordEvent(decision.id, push.delivered ? 'dispatch.push_accepted' : 'dispatch.push_failed', {
+      acceptedMs: push.acceptedMs, reason: push.reason,
+    });
 
     return reply.code(200).send({
       success: true,
       error: null,
       data: {
-        state: 'OPEN',
-        payer: payload?.payer ?? null,
+        decisionId: decision.id,
+        state: 'DISPATCHED',
+        humanLine: decision.humanLine,
+        /** The World signal. Also what a third party re-derives from the preimage. */
+        decisionHash: decision.decisionHash,
+        expiresAt: fresh.expiresAt.toISOString(),
+        serverNow: new Date().toISOString(),
         ttlSeconds: DECISION_TTL_SECONDS,
-        note: 'decision persistence lands with the Decision model',
+        payer,
+        push: { delivered: push.delivered, acceptedMs: push.acceptedMs, reason: push.reason ?? null },
+        a2a: toTaskView(decision.id, 'DISPATCHED', decision.humanLine),
       },
     });
   });
