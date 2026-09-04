@@ -64,6 +64,11 @@ export const HASHSCAN_BASE: string = opt('HASHSCAN_BASE', 'https://hashscan.io/t
 // NOTE: the USDC token id is deliberately NOT here. Import HEDERA_TESTNET_USDC
 // from '@x402/hedera' so it can never drift from the scheme's own table.
 
+// --- Hedera agent (the paying customer) --------------------------------------
+export const HEDERA_AGENT_ID: string = opt('HEDERA_AGENT_ID');
+/** SECRET. */
+export const HEDERA_AGENT_KEY: string = opt('HEDERA_AGENT_KEY');
+
 // --- x402 ------------------------------------------------------------------
 // Blocky402 is the DEFAULT, not a fallback. Hedera's qualification bullet names
 // it explicitly: "settled through the Blocky402 facilitator".

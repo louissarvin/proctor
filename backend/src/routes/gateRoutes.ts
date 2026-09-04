@@ -24,9 +24,10 @@ import { decisionHash, policyHash } from '../lib/attestation/hash.ts';
 import { mintWitnessToken, mintNonce, dispatchDecision, recordEvent } from '../lib/decision/lifecycle.ts';
 import { selectWitness, dispatchToWitness } from '../lib/witness/dispatch.ts';
 import { toTaskView } from '../lib/a2a/taskState.ts';
+import { formatSse, sseKeepalive, SSE_HEADERS, accruedUsd, type DecisionFrame } from '../lib/sse/stream.ts';
 import { handleError } from '../utils/errorHandler.ts';
 import { validateRequiredFields } from '../utils/validationUtils.ts';
-import { GATE_PRICE_USD, DECISION_TTL_SECONDS } from '../config/main-config.ts';
+import { GATE_PRICE_USD, DECISION_TTL_SECONDS, METER_RATE_USD_PER_SEC } from '../config/main-config.ts';
 
 export const gateRoutes: FastifyPluginCallback = (app: FastifyInstance, _opts, done) => {
   /**
@@ -170,6 +171,76 @@ export const gateRoutes: FastifyPluginCallback = (app: FastifyInstance, _opts, d
         a2a: toTaskView(decision.id, 'DISPATCHED', decision.humanLine),
       },
     });
+  });
+
+
+  /**
+   * Hold the agent's terminal open while a human decides.
+   *
+   * This is the on-camera wait. The meter frame is what makes it legible: a
+   * counter charging per second of real human attention, next to a countdown.
+   *
+   * The meter is DERIVED from elapsed time, not a payment. Settlement happens
+   * once, on release.
+   */
+  app.get('/decisions/:id/stream', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+
+    const decision = await prismaQuery.decision.findUnique({
+      where: { id },
+      select: { id: true, state: true, outcome: true, dispatchedAt: true, expiresAt: true, reviewMs: true },
+    });
+    if (!decision) return handleError(reply, 404, 'Decision not found', 'DECISION_NOT_FOUND');
+
+    reply.raw.writeHead(200, SSE_HEADERS);
+
+    const send = (frame: DecisionFrame, event?: string) => {
+      reply.raw.write(formatSse({ event, data: frame, id: String(Date.now()) }));
+    };
+
+    // Tell the client how long to wait before reconnecting, per the spec.
+    reply.raw.write(formatSse({ retry: 2000, event: 'open', data: { decisionId: id } }));
+    send({ type: 'state', state: decision.state, at: new Date().toISOString() });
+
+    let closed = false;
+    const stop = () => { closed = true; clearInterval(timer); };
+    request.raw.on('close', stop);
+
+    const timer = setInterval(async () => {
+      if (closed) return;
+      try {
+        const now = Date.now();
+        const d = await prismaQuery.decision.findUnique({
+          where: { id },
+          select: { state: true, outcome: true, dispatchedAt: true, expiresAt: true, reviewMs: true },
+        });
+        if (!d) return stop();
+
+        if (d.state === 'DISPATCHED') {
+          const elapsed = d.dispatchedAt ? now - d.dispatchedAt.getTime() : 0;
+          send({
+            type: 'meter',
+            elapsedMs: elapsed,
+            remainingMs: Math.max(0, d.expiresAt.getTime() - now),
+            accruedUsd: accruedUsd(elapsed, METER_RATE_USD_PER_SEC),
+          });
+          return;
+        }
+
+        if (d.outcome) {
+          send({ type: 'resolved', outcome: d.outcome, reviewMs: d.reviewMs ?? 0 }, 'resolved');
+          reply.raw.end();
+          return stop();
+        }
+
+        send({ type: 'state', state: d.state, at: new Date().toISOString() });
+      } catch {
+        reply.raw.write(sseKeepalive('error'));
+      }
+    }, 250);   // 4Hz: the counter must look alive on camera
+
+    // Never return the reply object: Fastify would try to send a second response.
+    return reply;
   });
 
   done();

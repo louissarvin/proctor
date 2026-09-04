@@ -11,7 +11,9 @@
     "db:push": "bunx prisma db push --config prisma/prisma.config.ts && bunx prisma generate --config prisma/prisma.config.ts",
     "db:pull": "bunx prisma db pull --config prisma/prisma.config.ts",
     "db:generate": "bunx prisma generate --config prisma/prisma.config.ts",
-    "db:migrate": "bunx prisma migrate dev --name init --config prisma/prisma.config.ts"
+    "db:migrate": "bunx prisma migrate dev --name init --config prisma/prisma.config.ts",
+    "seed": "bun scripts/seed.ts",
+    "demo": "bun scripts/demo.ts"
   },
   "keywords": [],
   "author": "",
