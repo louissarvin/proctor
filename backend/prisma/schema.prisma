@@ -441,8 +441,8 @@ model Payment {
   amountUsd    Decimal @db.Decimal(38, 18)
   /// Atomic units as a string, exactly what went on the wire.
   amountAtomic String
-  asset        String  // "0.0.429274"
-  network      String  // CAIP-2: "hedera:testnet"
+  asset        String // "0.0.429274"
+  network      String // CAIP-2: "hedera:testnet"
   payTo        String
   /// Bound to the gate payment's payer. A mismatch is 403 payer_mismatch:
   /// nothing in x402 links the two calls of the gate protocol together.
