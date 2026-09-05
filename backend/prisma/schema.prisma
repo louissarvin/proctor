@@ -278,6 +278,7 @@ model Witness {
   decisions Decision[]
   proofs    WorldProof[]
   payments  Payment[]
+  retainers Retainer[]
 
   @@unique([orgId, nullifier])
   @@index([orgId, state, role])
