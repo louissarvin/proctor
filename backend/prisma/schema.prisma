@@ -144,7 +144,7 @@ enum PaymentState {
   VERIFIED // facilitator accepted the payload, not yet on chain
   SETTLING
   SETTLED
-  DENIED   // Circle risk screening, or an Arc blocklist revert
+  DENIED // Circle risk screening, or an Arc blocklist revert
   FAILED
 }
 
