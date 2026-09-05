@@ -25,6 +25,8 @@ export type VerifyFailure =
   | 'signal_mismatch'
   | 'no_liveness'
   | 'duplicate_nonce'
+  | 'nonce_expired'
+  | 'nonce_unknown'
   | 'witness_is_operator'
   | 'verification_failed';
 
@@ -53,6 +55,8 @@ export interface VerifyInput {
   mode: WitnessMode;
   /** Whether the RP nonce was found unused and unexpired. */
   nonceValid: boolean;
+  /** Why the nonce failed, so an expiry is not reported as a replay. */
+  nonceFailure?: 'expired' | 'used' | 'unknown';
   /** Injected so tests are deterministic and the TTL is judged at arrival. */
   now?: Date;
 }
@@ -68,9 +72,16 @@ export type VerifyOutcome =
  * stable pseudonym there and one-time-use on the v4 paths.
  */
 const EXPECTED: Record<WitnessMode, { identifier: string; protocol: string; presence: boolean }> = {
+  // Selfie Check IS the liveness check, so presence is carried by the
+  // credential rather than by the extra step.
   SELFIE:          { identifier: 'selfie',         protocol: '3.0', presence: false },
   ORB_PRESENCE:    { identifier: 'proof_of_human', protocol: '4.0', presence: true  },
-  DEVICE_DEV_ONLY: { identifier: 'device',         protocol: '3.0', presence: false },
+  // `device` alone proves possession of a phone and nothing about a human.
+  // The widget requests require_user_presence, so REQUIRE the result here:
+  // asking for a property and then not checking it is how a security control
+  // becomes decoration. This is what keeps "a live human approved" true while
+  // the Selfie Check beta flag is pending.
+  DEVICE_DEV_ONLY: { identifier: 'device',         protocol: '3.0', presence: true  },
 };
 
 const fail = (reason: VerifyFailure): VerifyOutcome => ({ ok: false, reason });
@@ -109,7 +120,17 @@ export function verifyWitnessProof(input: VerifyInput): VerifyOutcome {
   if (want.presence && input.raw.user_presence_completed !== true) return fail('no_liveness');
 
   // 6. RP nonce single-use.
-  if (!input.nonceValid) return fail('duplicate_nonce');
+  if (!input.nonceValid) {
+    // An EXPIRED nonce and a REPLAYED one are different findings: one is a
+    // witness who took too long, the other is an attack. Reporting both as
+    // `duplicate_nonce` sends an operator hunting for a replay that never
+    // happened.
+    return fail(
+      input.nonceFailure === 'expired' ? 'nonce_expired'
+      : input.nonceFailure === 'unknown' ? 'nonce_unknown'
+      : 'duplicate_nonce',
+    );
+  }
 
   // 7. Segregation of duties: the witness must not be the operator.
   if (!item.nullifier) return fail('verification_failed');
