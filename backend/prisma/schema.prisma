@@ -297,21 +297,32 @@ model Decision {
   state   DecisionState    @default(PENDING_PAYMENT)
   outcome DecisionOutcome?
 
+  /// Dense, per-org issuance number, assigned at creation and published inside
+  /// the signed attestation as `sq`.
+  ///
+  /// WHY THIS EXISTS. The HCS running hash proves nothing was altered, removed
+  /// or reordered ON the log. It cannot prove nothing was WITHHELD FROM it: an
+  /// operator who simply never submits an inconvenient refusal leaves the chain
+  /// perfectly intact. Because these numbers are dense and each one is signed
+  /// into a record with a consensus timestamp the operator did not choose, a
+  /// suppressed decision shows up as a hole that any third party can see.
+  orgSeq Int
+
   /// The canonical JSON the witness attests to. Stored in full because the
   /// Article 12 export must be human readable.
-  preimage Json
+  preimage     Json
   /// keccak256(utf8(canonical(preimage))). THIS IS THE WORLD `signal`.
   /// Unique, not merely indexed: if two decisions shared a hash, a proof for
   /// one would verify against the other.
   decisionHash String @unique
   /// The single line rendered on the phone.
-  humanLine String
+  humanLine    String
   /// Single-use randomness inside the preimage. Makes two identical payments
   /// distinct, which is what makes the hash collision impossible.
-  nonce String @unique
+  nonce        String @unique
 
   /// Copied from the policy at fire time, so evidence shows the rule that ran.
-  requiredRole String @default("standard")
+  requiredRole String  @default("standard")
   policyReason String?
   /// sha256 of the canonicalised policy rules. Goes into the attestation.
   policyHash   String?
