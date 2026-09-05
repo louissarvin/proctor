@@ -212,10 +212,10 @@ model ApiKey {
 
 /// The AI agent whose actions are gated.
 model Agent {
-  id      String @id @default(cuid())
-  orgId   String
-  org     Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  label   String
+  id    String @id @default(cuid())
+  orgId String
+  org   Org    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  label String
 
   /// HCS-14 universal agent id, generated per the draft spec.
   /// uaid:aid:<base58(sha384)>;registry=proctor;nativeId=hedera:testnet:0.0.X
