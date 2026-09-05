@@ -172,6 +172,21 @@ model Org {
   operatorNullifier  Decimal?  @db.Decimal(78, 0)
   operatorEnrolledAt DateTime?
 
+  /// Monotonic issuance counter backing Decision.orgSeq. Incremented in the
+  /// SAME transaction that creates the decision, so a failed create rolls the
+  /// number back and never leaves a phantom gap.
+  decisionCounter Int @default(0)
+
+  /// May this org's decisions be written to the shared HCS evidence topic?
+  ///
+  /// DEFAULTS TO FALSE, and that default is the point. The topic has no admin
+  /// key, so anything written there is permanent for everyone forever. A test
+  /// fixture that reaches it cannot be deleted, only explained. The TTL sweeper
+  /// attests every expired decision it finds, so without this an ordinary dev
+  /// server with test data in the database quietly pollutes the evidence log.
+  /// Opt in per org, never opt out.
+  attestable Boolean @default(false)
+
   apiKeys   ApiKey[]
   agents    Agent[]
   witnesses Witness[]
