@@ -84,6 +84,38 @@ variable.
 
 ---
 
+## THE PRIORITY FLIPPED — chase the FLAG, not the Sandbox app
+
+*2026-09-09, from the live prize page and `/world-id/credentials/11`.*
+
+**1. The Sandbox App is no longer a qualification bullet.** The live World prize lists four
+requirements, and *"Uses the World ID Sandbox App to test and demo the flow remotely"* is
+not among them. Sandbox now appears only inside the feedback-document requirement
+(*"Sandbox App states, proof flows, test users, errors, and edge cases"*). Our planning
+docs recorded the older five-bullet version, and treated Sandbox as blocking. It is not.
+
+**2. The prize is now up to 3 winners at $1,166**, not one seat at $3,500. Not
+winner-take-all any more, which materially changes the odds.
+
+**3. The FLAG, not the app, is what unlocks real Selfie Check.** From
+[`/world-id/credentials/11`](https://docs.world.org/world-id/credentials/11), verbatim:
+
+> "Once enabled, **anyone with World ID App** can use Selfie Check. No Orb, passport or
+> other prerequisite credential is required."
+
+That says World ID App, not *sandbox* World ID App. So with the feature flag enabled, a
+real Selfie Check runs on a normal iPhone with the **public App Store build** — no
+TestFlight, no enrolment queue. Sandbox exists to test *"without real hardware or
+real-world credentials"*; Selfie Check needs neither, because it requires no prerequisite
+credential and the hardware is the phone camera.
+
+**So the highest-value ask is `developers@toolsforhumanity.com` for the feature flag on
+`app_e179f4985c290220a5598b841fd5e3da`.** The TestFlight queue is now the secondary path,
+worth keeping open for feedback material rather than for qualification.
+
+
+---
+
 ## DO THIS NOW, in order
 
 Total about 35 minutes. Item 2 is the one that unblocks everything else, because the Selfie Check
