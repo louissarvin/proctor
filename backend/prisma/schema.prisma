@@ -490,8 +490,8 @@ model Attestation {
   attestorSig     String
   attestorAddress String
 
-  topicId        String
-  sequenceNumber BigInt?
+  topicId            String
+  sequenceNumber     BigInt?
   /// "seconds.nanos". The external clock we did not choose.
   consensusTimestamp String?
   /// 48 bytes base64 straight from the receipt, compared against the mirror.
