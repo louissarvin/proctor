@@ -85,15 +85,52 @@ enum WitnessState {
 /// Which credential produced the proof. Decides whether the nullifier is a
 /// stable pseudonym: v3 credentials yes, v4 uniqueness proofs no.
 enum WitnessMode {
-  SELFIE          // selfieCheckLegacy, v3 proof, stable nullifier. The plan.
-  ORB_PRESENCE    // proofOfHuman + require_user_presence, v4. Fallback.
+  SELFIE // selfieCheckLegacy, v3 proof, stable nullifier. The plan.
+  ORB_PRESENCE // proofOfHuman + require_user_presence, v4. Fallback.
   DEVICE_DEV_ONLY // deviceLegacy. Local plumbing and the simulator only.
 }
 
 enum PaymentLeg {
-  GATE        // agent pays to open the decision. Hedera exact.
-  METER       // agent pays for elapsed review seconds.
+  GATE // agent pays to open the decision. Hedera exact.
+  METER // agent pays for elapsed review seconds.
   WITNESS_FEE // treasury pays the witness.
+}
+
+/// Standby pay for being ON THE ROTA, distinct from being paid per decision.
+///
+/// A witness who is available all day and receives no decisions currently earns
+/// nothing, which is a real hole in the economics: it prices availability at
+/// zero and quietly pushes a rota towards nobody being reachable. Real on-call
+/// pays standby, and so does this.
+///
+/// It is a SCHEDULED transaction rather than a cron job on our side, because
+/// the argument is the same one the evidence log makes: a payment that fires
+/// from Hedera's clock does not depend on our server being alive or honest.
+model Retainer {
+  id        String  @id @default(cuid())
+  witnessId String
+  witness   Witness @relation(fields: [witnessId], references: [id], onDelete: Cascade)
+
+  amountAtomic String
+  asset        String // "HBAR"
+  network      String // CAIP-2
+
+  /// The Hedera schedule. Null until the network accepted it.
+  scheduleId String?      @unique
+  /// When the network will execute it, not when we intend to.
+  executeAt  DateTime
+  state      PaymentState @default(QUOTED)
+
+  transactionId String?
+  explorerUrl   String?
+  failureReason String?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  executedAt DateTime?
+
+  @@index([witnessId, executeAt])
+  @@index([state, executeAt])
 }
 
 enum PaymentRail {
