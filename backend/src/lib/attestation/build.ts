@@ -27,6 +27,15 @@ export interface AttestationCore {
   v: number;
   /** decision hash. The World `signal`. What the witness actually saw. */
   dh: string;
+  /**
+   * Dense per-org issuance number. THE COMPLETENESS FIELD.
+   *
+   * The running hash proves nothing was altered on the log; it cannot prove
+   * nothing was withheld from it. Signing a dense number into every record
+   * turns a suppressed decision into a visible hole. See lib/evidence/
+   * completeness.ts for the threat model and the residual weakness.
+   */
+  sq: string;
   /** outcome */
   out: Outcome;
   /** agent HCS-14 UAID */
@@ -79,6 +88,7 @@ export const eip712Domain = () => ({
 export const eip712Types = {
   OversightRecord: [
     { name: 'dh',  type: 'string' },
+    { name: 'sq',  type: 'string' },
     { name: 'out', type: 'string' },
     { name: 'wid', type: 'string' },
     { name: 'wn',  type: 'string' },
@@ -92,10 +102,48 @@ export const eip712Types = {
   ],
 } as const;
 
+/**
+ * A published, worthless key used ONLY when no attestor key is configured.
+ *
+ * The README promises the whole loop runs with "no wallet, no API keys", and a
+ * cold clone previously died here with a stack trace on `bun run demo`. An
+ * evidence product whose own quickstart crashes is not credible, so the demo
+ * path must work unconfigured.
+ *
+ * It is a FIXED key rather than a random one so a reader can reproduce the same
+ * signature twice and tell that it is the demo key. It holds nothing, controls
+ * nothing, and is in source deliberately: a secret that is published is no
+ * longer a secret, which is the point.
+ */
+const DEV_ATTESTOR_KEY =
+  '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d' as const;
+
+let warnedAboutDevKey = false;
+
+/**
+ * The signing identity for attestations.
+ *
+ * Falls back to a published demo key so the quickstart runs, but says so every
+ * time rather than letting an unconfigured deployment quietly emit records that
+ * LOOK attested. The address differs from the real attestor, so anyone checking
+ * a record against the published trust roots sees the mismatch immediately.
+ */
 export const attestorAccount = () => {
-  if (!ATTESTOR_PRIVATE_KEY) throw new Error('ATTESTOR_PRIVATE_KEY is not configured');
-  return privateKeyToAccount(ATTESTOR_PRIVATE_KEY as `0x${string}`);
+  if (ATTESTOR_PRIVATE_KEY) return privateKeyToAccount(ATTESTOR_PRIVATE_KEY as `0x${string}`);
+
+  if (!warnedAboutDevKey) {
+    warnedAboutDevKey = true;
+    console.warn(
+      '[attestation] ATTESTOR_PRIVATE_KEY is not set: signing with the PUBLISHED DEMO KEY. ' +
+      'These signatures are reproducible by anyone and prove nothing about who produced them. ' +
+      'Set ATTESTOR_PRIVATE_KEY before treating any record as evidence.',
+    );
+  }
+  return privateKeyToAccount(DEV_ATTESTOR_KEY);
 };
+
+/** True when records are being signed by the throwaway demo key. */
+export const usingDemoAttestor = (): boolean => !ATTESTOR_PRIVATE_KEY;
 
 /**
  * Sign the core. Every field the signature covers is in eip712Types, so a
@@ -109,7 +157,7 @@ export const signAttestation = async (core: AttestationCore): Promise<string> =>
     types: eip712Types,
     primaryType: 'OversightRecord',
     message: {
-      dh: core.dh, out: core.out,
+      dh: core.dh, sq: core.sq, out: core.out,
       wid: core.wid ?? '', wn: core.wn ?? '',
       on: core.on, wa: core.wa, ind: core.ind,
       pol: core.pol, mtr: core.mtr, rev: core.rev, ts: core.ts,
@@ -119,6 +167,8 @@ export const signAttestation = async (core: AttestationCore): Promise<string> =>
 
 export interface BuildInput {
   decisionHash: string;
+  /** Dense per-org issuance number. See AttestationCore.sq. */
+  orgSeq: number;
   outcome: Outcome;
   agentUaid: string;
   worldProofDigest: string | null;
@@ -136,6 +186,7 @@ export const buildAttestation = async (input: BuildInput): Promise<BuiltAttestat
   const core: AttestationCore = {
     v: ATTESTATION_SPEC_VERSION,
     dh: input.decisionHash,
+    sq: String(input.orgSeq),
     out: input.outcome,
     agt: input.agentUaid,
     wid: input.worldProofDigest,
