@@ -225,8 +225,8 @@ model Agent {
   hederaAccountId String?
   arcAddress      String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   revokedAt DateTime?
 
   decisions Decision[]
