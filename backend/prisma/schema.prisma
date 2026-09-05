@@ -351,6 +351,9 @@ model Decision {
   payments    Payment[]
   events      DecisionEvent[]
 
+  /// Two decisions may never share an issuance number: a hole must mean a
+  /// withheld record, never a renumbering.
+  @@unique([orgId, orgSeq])
   @@index([orgId, issuedAt(sort: Desc)])
   @@index([orgId, outcome, issuedAt(sort: Desc)])
   @@index([agentId, issuedAt(sort: Desc)])
