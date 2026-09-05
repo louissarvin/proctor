@@ -1,3 +1,60 @@
+# World access
+
+> **2026-09-09 — `sandbox.access@toolsforhumanity.org` IS UNDELIVERABLE. DO NOT EMAIL IT.**
+>
+> This document repeatedly says to email that address, and in two places emphasises
+> *"note `.org`, not `.com`"*. That instruction came from World's own docs and is wrong:
+> `toolsforhumanity.org` is **not a registered domain** (`whois` → `Domain not found`,
+> no NS, no MX). Mail to it bounces.
+>
+> The only working contact is **`developers@toolsforhumanity.com`**. Every `.org` line
+> below is left in place as the reasoning trail, but none of it is actionable.
+> Written up for World as finding §3.7 in [`WORLD_FEEDBACK.md`](WORLD_FEEDBACK.md).
+
+
+> **2026-09-09 — THE ACCESS PROCESS CHANGED. READ THIS FIRST.**
+>
+> Sandbox access is now **self-service in the Developer Portal**, not an email or a
+> Google Form. Per [`/world-id/sandbox/sandbox-access`](https://docs.world.org/world-id/sandbox/sandbox-access):
+>
+> > "In the [Developer Portal](https://developer.world.org), select **World ID Sandbox**
+> > from the sidebar, choose the **iOS** tab, and submit the Apple Account email you want
+> > enrolled. **Enrollment is tied to a team, so open the sandbox panel from within a team.**"
+>
+> Our request went out on 2026-09-02 via the `forms.gle` form and an email. This file
+> already recorded that the form "predates the current distribution setup" — which likely
+> means **the request was never routed anywhere**. Seven days of silence is consistent
+> with that, not with a queue.
+>
+> **DO THIS NOW, in the Portal, from inside a team:**
+>
+> 1. **Android first.** Same panel, enter the Google account used by the Play Store.
+>    World documents iOS Semi-cold as broken (*"if the user taps Sign in instead of Sign
+>    up mid-flow, there's no path to add the invite code"*) and says the reinstall journey
+>    *"reliably works on Android today."* Android is the better demo device on their own
+>    account, not just the faster one.
+> 2. **iOS as well**, so both are in flight. Submit the Apple Account email you will
+>    actually sign in to TestFlight with — not any other address.
+> 3. If a previous request was rejected, **resubmitting the same email does nothing.**
+>    Contact `sandbox.access@toolsforhumanity.org`.
+>
+> **Android gotcha, from their troubleshooting section:** the browser opening the testing
+> link and the Play Store must be signed in to the *same* Google account, and a
+> first-time account needs **15 minutes** before the link works. Two ways to conclude
+> wrongly that access was not granted.
+>
+> **There is no simulator.** Neither `what-is-sandbox` nor `testing-selfie-check`
+> offers a device-free path. The Sandbox app is required, and the approve leg cannot be
+> filmed without it because our route forwards the proof to World's real verifier.
+>
+> **Integration side, once installed:** set `WORLD_ENVIRONMENT=sandbox` (and
+> `VITE_WORLD_MODE`/`WORLD_MODE=SELFIE` when the flag lands). The proof still goes to the
+> **production** verify endpoint. Verified: the value propagates to the PWA unchanged.
+>
+> **Our architecture already matches their documented journey.** Their coverage table
+> lists *"Web app / Hot — cross-device: start on web, complete on phone via QR scan,
+> proof returns to the web session."* That is exactly the `/handoff/<token>` QR flow.
+
 # World ID Selfie Check: Access Runbook
 
 Everything needed to go from zero to a working Selfie Check integration, in order.
