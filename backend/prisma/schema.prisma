@@ -395,10 +395,10 @@ model WorldProof {
   rawDigest String
 
   signalHash            String
-  identifier            String  // "selfie"
-  protocolVersion       String  // "3.0"
-  nullifier             Decimal @db.Decimal(78, 0)
-  userPresenceCompleted Boolean @default(false)
+  identifier            String // "selfie"
+  protocolVersion       String // "3.0"
+  nullifier             Decimal     @db.Decimal(78, 0)
+  userPresenceCompleted Boolean     @default(false)
   mode                  WitnessMode
 
   /// World's clock, not ours.
