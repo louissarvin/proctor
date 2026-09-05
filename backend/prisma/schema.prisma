@@ -62,12 +62,12 @@ model ErrorLog {
 
 enum DecisionState {
   PENDING_PAYMENT // 402 issued, no valid payment yet
-  OPEN            // gate payment settled, not yet dispatched
-  DISPATCHED      // witness has it on a phone, TTL running
-  APPROVED        // witness approved inside TTL, proof verified
-  REFUSED         // witness explicitly refused inside TTL
-  EXPIRED         // TTL elapsed with no valid response. THE DEFAULT OUTCOME
-  FAILED          // internal error. NEVER releases the agent
+  OPEN // gate payment settled, not yet dispatched
+  DISPATCHED // witness has it on a phone, TTL running
+  APPROVED // witness approved inside TTL, proof verified
+  REFUSED // witness explicitly refused inside TTL
+  EXPIRED // TTL elapsed with no valid response. THE DEFAULT OUTCOME
+  FAILED // internal error. NEVER releases the agent
 }
 
 enum DecisionOutcome {
