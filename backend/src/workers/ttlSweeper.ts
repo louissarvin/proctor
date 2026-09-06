@@ -11,6 +11,7 @@
  */
 import nodeCron from 'node-cron';
 import { expireOverdueDecisions } from '../lib/decision/lifecycle.ts';
+import { attestDecision } from '../lib/attestation/persist.ts';
 
 let isRunning = false;
 
@@ -26,6 +27,18 @@ const sweep = async (): Promise<void> => {
     const expired = await expireOverdueDecisions();
     if (expired.length > 0) {
       console.log(`[TTLSweeper] expired ${expired.length} decision(s): ${expired.join(', ')}`);
+      // An expiry is a refusal by default, and it belongs on the evidence log.
+      // Fire-and-forget so the sweeper keeps its 1s tick, but a failure must
+      // be visible: it leaves a hole the completeness check reports as
+      // withheld. attestationBackfill repairs it on the next minute.
+      for (const id of expired) {
+        void attestDecision(id).catch((e) => {
+          console.error(`[TTLSweeper] attest ${id} failed, backfill will retry:`, e);
+        });
+      }
+      // NOT paid. An expiry means nobody looked, so there is no attention to
+      // bill for. meterableMs already returns 0 for EXPIRE; skipping the call
+      // keeps it from booking a floor-priced payment for work never done.
     }
   } catch (error) {
     console.error('[TTLSweeper] Error:', error);
