@@ -8,6 +8,7 @@ import {
   dispatchDecision, approveDecision, refuseDecision,
   expireOverdueDecisions, meterableMs, mintWitnessToken, mintNonce,
 } from '../src/lib/decision/lifecycle.ts';
+import { issueDecision } from '../src/lib/decision/issue.ts';
 
 const SUFFIX = `t${Date.now()}`;
 let orgId = '';
@@ -35,15 +36,13 @@ afterAll(async () => {
 const makeDecision = async (): Promise<string> => {
   const { hash } = mintWitnessToken();
   const nonce = mintNonce();
-  const d = await prismaQuery.decision.create({
-    data: {
-      orgId, agentId, state: 'OPEN',
+  const d = await issueDecision(orgId, {
+      agentId, state: 'OPEN',
       preimage: { action: 'transfer', amount: '41200.00' },
       decisionHash: `0x${nonce}${'0'.repeat(64 - nonce.length)}`,
       humanLine: 'Release EUR 41,200 to Meridian Logistics?',
       nonce, witnessTokenHash: hash,
       expiresAt: new Date(Date.now() + 60_000),
-    },
   });
   return d.id;
 };
