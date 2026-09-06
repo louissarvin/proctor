@@ -5,6 +5,7 @@ import { buildExport, REGULATORY_MAPPING, HOW_TO_VERIFY } from '../src/lib/evide
 import { decisionHash } from '../src/lib/attestation/hash.ts';
 import { buildAttestation, eip712Domain, eip712Types } from '../src/lib/attestation/build.ts';
 import { mintWitnessToken, mintNonce } from '../src/lib/decision/lifecycle.ts';
+import { issueDecision } from '../src/lib/decision/issue.ts';
 
 const SUFFIX = `x${Date.now()}`;
 let orgId = '';
@@ -51,7 +52,7 @@ test('EXPORT IS SELF-SUFFICIENT: a third party re-derives the decision hash from
 
 test('the attestation signature verifies from the export, offline', async () => {
   const a = await buildAttestation({
-    decisionHash: '0x' + 'a'.repeat(64), outcome: 'APPROVE', agentUaid: 'uaid:aid:x',
+    decisionHash: '0x' + 'a'.repeat(64), orgSeq: 1, outcome: 'APPROVE', agentUaid: 'uaid:aid:x',
     worldProofDigest: 'b'.repeat(64), witnessNullifier: '111', operatorNullifier: '222',
     witnessAuth: 'proof', independence: 'crypto', policyHash: 'c'.repeat(64),
     meteredMs: 6412, reviewMs: 6412,
@@ -61,7 +62,7 @@ test('the attestation signature verifies from the export, offline', async () => 
     address: a.attestorAddress as `0x${string}`,
     domain: eip712Domain(), types: eip712Types, primaryType: 'OversightRecord',
     message: {
-      dh: a.core.dh, out: a.core.out, wid: a.core.wid ?? '', wn: a.core.wn ?? '',
+      dh: a.core.dh, sq: a.core.sq, out: a.core.out, wid: a.core.wid ?? '', wn: a.core.wn ?? '',
       on: a.core.on, wa: a.core.wa, ind: a.core.ind, pol: a.core.pol,
       mtr: a.core.mtr, rev: a.core.rev, ts: a.core.ts,
     },
@@ -90,11 +91,31 @@ test('raw mirror rows survive the export byte-identical', () => {
 
 test('the export cites the Act provisions it speaks to', () => {
   // A claim a judge who knows the Act can check, rather than a vague gesture.
-  expect(Object.keys(REGULATORY_MAPPING)).toEqual(['Art 12(1)', 'Art 12(3)(a)', 'Art 12(3)(d)', 'Art 14(5)']);
-  // Art 14(5) requires TWO natural persons. The record carries both nullifiers.
-  expect(REGULATORY_MAPPING['Art 14(5)']).toContain('operator and witness nullifiers');
+  expect(Object.keys(REGULATORY_MAPPING)).toEqual([
+    'Art 12(1)', 'Art 12(3)(a)', 'Art 12(3)(d)', 'Art 14(4)',
+    'Art 14(5), scope-qualified', 'Art 12(1), completeness',
+  ]);
+
   // Art 12(3)(d) is about identifying the persons who verified.
   expect(REGULATORY_MAPPING['Art 12(3)(d)']).toContain('rather than by the deployer');
+
+  // Art 12(1) is record-KEEPING. An omitted record fails it as surely as an
+  // edited one, which is why completeness is mapped separately from immutability.
+  expect(REGULATORY_MAPPING['Art 12(1), completeness']).toContain('visible gap');
+
+  // THE SCOPE QUALIFIER, asserted so it can never be quietly dropped again.
+  //
+  // 14(5) opens "For high-risk AI systems referred to in point 1(a) of Annex
+  // III" — remote biometric identification. It does NOT bind a supplier-payment
+  // agent. Quoting it without that clause is the single most checkable overclaim
+  // this project could make, and it shipped that way until it was read to the end.
+  const scoped = REGULATORY_MAPPING['Art 14(5), scope-qualified']!;
+  expect(scoped).toContain('Annex III point 1(a)');
+  expect(scoped).toContain('remote biometric identification');
+  expect(scoped).toContain('does NOT bind');
+
+  // What actually binds every high-risk deployer.
+  expect(REGULATORY_MAPPING['Art 14(4)']).toContain('interrupt');
 });
 
 test('HOW_TO_VERIFY ends by stating none of it contacts Proctor', () => {
@@ -122,14 +143,12 @@ test('the export walks a real decision out of the database', async () => {
   const { hash } = mintWitnessToken();
   const nonce = mintNonce();
   const preimage = { action: { kind: 'transfer', amount: '41200.00' }, nonce };
-  const d = await prismaQuery.decision.create({
-    data: {
-      orgId, agentId, state: 'EXPIRED', outcome: 'EXPIRE',
+  const d = await issueDecision(orgId, {
+      agentId, state: 'EXPIRED', outcome: 'EXPIRE',
       preimage, decisionHash: decisionHash(preimage),
       humanLine: 'Release EUR 41,200 to Meridian Logistics?',
       nonce, witnessTokenHash: hash,
       expiresAt: new Date(), reviewMs: 60000,
-    },
   });
 
   const row = await prismaQuery.decision.findUniqueOrThrow({ where: { id: d.id } });
