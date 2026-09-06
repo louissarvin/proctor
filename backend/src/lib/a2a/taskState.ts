@@ -21,8 +21,12 @@
  * auth-required state, which is what that state exists for."
  *
  * WHAT WE DO NOT CLAIM: "multi-agent negotiation". There is no negotiation in
- * Proctor, and a judge who knows A2A would notice. Negotiation would require
- * the JSON-RPC message/send binding, which we deliberately did not build.
+ * Proctor, and a judge who knows A2A would notice. Nothing here bargains over
+ * price or terms; the agent selects from offers it is given.
+ *
+ * We DO serve the JSON-RPC binding, read-only: `a2a.GetTask` at POST /a2a
+ * returns a spec-shaped Task, with the attestation as an artifact once
+ * terminal. See routes/a2aRoutes.ts for why SendMessage is not implemented.
  */
 
 export type A2ATaskState =
