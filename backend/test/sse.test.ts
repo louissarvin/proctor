@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { formatSse, sseKeepalive, SSE_HEADERS, accruedUsd } from '../src/lib/sse/stream.ts';
+import { formatSse, sseKeepalive, SSE_HEADERS, accruedUsd, type DecisionFrame } from '../src/lib/sse/stream.ts';
 
 // --- WHATWG wire format ----------------------------------------------------
 
@@ -59,4 +59,47 @@ test('negative elapsed time cannot produce a negative charge', () => {
 test('always six decimal places, matching USDC atomic units', () => {
   expect(accruedUsd(1, '0.0021')).toMatch(/^\d+\.\d{6}$/);
   expect(accruedUsd(123_456, '0.0021')).toMatch(/^\d+\.\d{6}$/);
+});
+
+// --- the terminal frame ----------------------------------------------------
+//
+// Verified live against a running decision: meter frames at 4Hz, then a single
+// `resolved` event, then the stream closes. These lock the parts a client
+// depends on, because every failure here is SILENT — a listener simply never
+// fires and the terminal looks like it is still waiting.
+
+test('the resolved frame is a NAMED event', () => {
+  // The route sends it as `event: resolved`. A client using
+  // addEventListener('resolved', ...) never fires if the name is dropped, and
+  // nothing errors: the wait just never ends on camera.
+  const frame = formatSse({
+    event: 'resolved',
+    data: { type: 'resolved', outcome: 'REFUSE', reviewMs: 14383 },
+  });
+
+  expect(frame).toContain('event: resolved');
+  expect(frame.endsWith('\n\n')).toBe(true);
+});
+
+test('the resolved frame carries the outcome and the review time', () => {
+  const frame = formatSse({
+    event: 'resolved',
+    data: { type: 'resolved', outcome: 'APPROVE', reviewMs: 6412 } satisfies DecisionFrame,
+  });
+  const payload = JSON.parse(frame.split('data: ')[1]!.trim());
+
+  expect(payload.outcome).toBe('APPROVE');
+  expect(payload.reviewMs).toBe(6412);
+});
+
+test('an EXPIRE is a resolution like any other', () => {
+  // A decision nobody answered still ends the stream. If expiry were not a
+  // terminal frame the agent would hang on a decision that is already refused.
+  const frame = formatSse({
+    event: 'resolved',
+    data: { type: 'resolved', outcome: 'EXPIRE', reviewMs: 60000 } satisfies DecisionFrame,
+  });
+
+  expect(frame).toContain('event: resolved');
+  expect(frame).toContain('"outcome":"EXPIRE"');
 });
