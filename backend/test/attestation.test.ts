@@ -7,6 +7,7 @@ import {
 
 const base = (o: Partial<BuildInput> = {}): BuildInput => ({
   decisionHash: '0x' + 'a'.repeat(64),
+  orgSeq: 47,
   outcome: 'APPROVE',
   agentUaid: 'uaid:aid:2Kj9xQm4vN8pLd3RtYwZbHcFgSaEuVnMkXoPqTrWyBiJ;registry=proctor',
   worldProofDigest: 'b'.repeat(64),
@@ -42,7 +43,7 @@ test('the EIP-712 signature verifies against the published attestor address', as
     types: eip712Types,
     primaryType: 'OversightRecord',
     message: {
-      dh: a.core.dh, out: a.core.out, wid: a.core.wid ?? '', wn: a.core.wn ?? '',
+      dh: a.core.dh, sq: a.core.sq, out: a.core.out, wid: a.core.wid ?? '', wn: a.core.wn ?? '',
       on: a.core.on, wa: a.core.wa, ind: a.core.ind, pol: a.core.pol,
       mtr: a.core.mtr, rev: a.core.rev, ts: a.core.ts,
     },
@@ -58,7 +59,7 @@ test('TAMPER: changing the outcome invalidates the signature', async () => {
     address: a.attestorAddress as `0x${string}`,
     domain: eip712Domain(), types: eip712Types, primaryType: 'OversightRecord',
     message: {
-      dh: forged.dh, out: forged.out, wid: forged.wid ?? '', wn: forged.wn ?? '',
+      dh: forged.dh, sq: forged.sq, out: forged.out, wid: forged.wid ?? '', wn: forged.wn ?? '',
       on: forged.on, wa: forged.wa, ind: forged.ind, pol: forged.pol,
       mtr: forged.mtr, rev: forged.rev, ts: forged.ts,
     },
