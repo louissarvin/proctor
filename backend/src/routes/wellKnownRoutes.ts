@@ -7,11 +7,12 @@
 import type { FastifyInstance, FastifyPluginCallback, FastifyRequest, FastifyReply } from 'fastify';
 import { attestorAccount, eip712Domain } from '../lib/attestation/build.ts';
 import { proctorGateUaid, PROCTOR_SKILLS } from '../lib/attestation/uaid.ts';
+import { ERC8004 } from '../lib/arc/chain.ts';
 import {
   HEDERA_TOPIC_ID, MIRROR_NODE_URL, HEDERA_NETWORK,
   WORLD_RP_ID, WORLD_ACTION, WORLD_VERIFY_URL, WORLD_MODE,
   GATE_PRICE_USD, METER_RATE_USD_PER_SEC, DECISION_TTL_SECONDS,
-  PAY_TO_HEDERA,
+  PAY_TO_HEDERA, ARC_AGENT_ID, ARC_CHAIN_ID, PUBLIC_BASE_URL,
 } from '../config/main-config.ts';
 
 export const wellKnownRoutes: FastifyPluginCallback = (app: FastifyInstance, _opts, done) => {
@@ -39,9 +40,16 @@ export const wellKnownRoutes: FastifyPluginCallback = (app: FastifyInstance, _op
       // HCS-14 is a DRAFT standard. We generate the identifier per the draft
       // spec deterministically; we do not claim "compliance", which is not ours
       // to assert while the standard is in draft.
+      // Two canonical identifiers, one per chain, rather than picking a winner.
       agentIdentity: {
-        standard: 'HCS-14 (draft)',
-        gate: PAY_TO_HEDERA ? proctorGateUaid(PAY_TO_HEDERA, HEDERA_NETWORK) : null,
+        hcs14: {
+          standard: 'HCS-14 (draft)',
+          uaid: PAY_TO_HEDERA ? proctorGateUaid(PAY_TO_HEDERA, HEDERA_NETWORK) : null,
+        },
+        erc8004: ARC_AGENT_ID
+          ? { chainId: ARC_CHAIN_ID, registry: ERC8004.identity, agentId: ARC_AGENT_ID,
+              explorer: `https://testnet.arcscan.app/token/${ERC8004.identity}/instance/${ARC_AGENT_ID}` }
+          : null,
       },
       canonicalization: 'RFC 8785 (JSON Canonicalization Scheme)',
       caveat: 'The authoritative copy of these roots is published on the HCS topic above. This file is a convenience.',
@@ -59,8 +67,44 @@ export const wellKnownRoutes: FastifyPluginCallback = (app: FastifyInstance, _op
       description:
         'A human oversight gate for AI agents. An agent is stopped by an HTTP 402, pays to open a decision, and a verified human who is not the operator approves or refuses within a fixed deadline. The output is a tamper-evident evidence record.',
       version: '1.0.0',
-      supportedInterfaces: ['http+json'],
-      capabilities: { pushNotifications: true, streaming: false, stateTransitionHistory: true },
+      /**
+       * A2A v1.0 replaced the top-level `url` and `preferredTransport` with an
+       * ordered array of interface OBJECTS, first entry preferred. Publishing
+       * bare strings here is a spec violation, and worse, it leaves the card
+       * with no URL at all: another agent could read what we do and still have
+       * nowhere to send a request.
+       */
+      supportedInterfaces: [
+        {
+          url: `${PUBLIC_BASE_URL}/v1/gate/decisions`,
+          protocolBinding: 'HTTP+JSON',
+          protocolVersion: '1.0',
+        },
+        {
+          url: `${PUBLIC_BASE_URL}/a2a`,
+          protocolBinding: 'JSONRPC',
+          protocolVersion: '1.0',
+          // Named explicitly. Advertising the binding while leaving a client to
+          // discover by trial which methods exist is the same failure as
+          // publishing no URL at all.
+          methods: ['a2a.GetTask'],
+        },
+      ],
+      /**
+       * Per the A2A spec these describe METHODS we serve, not features we have.
+       *
+       * pushNotifications=false: it means the Create/Get/List/Delete
+       * TaskPushNotificationConfig methods, which we do not serve. We DO send
+       * web push to the witness's phone and SSE to the caller, but neither is
+       * the thing this flag claims.
+       *
+       * streaming=false: means SendStreamingMessage / SubscribeToTask over
+       * JSON-RPC. Our SSE stream is at GET /v1/gate/decisions/:id/stream.
+       *
+       * stateTransitionHistory=true: a2a.GetTask returns Task.history from the
+       * append-only decision event trail.
+       */
+      capabilities: { pushNotifications: false, streaming: false, stateTransitionHistory: true },
       defaultInputModes: ['application/json'],
       defaultOutputModes: ['application/json'],
       skills: [
@@ -82,7 +126,10 @@ export const wellKnownRoutes: FastifyPluginCallback = (app: FastifyInstance, _op
         interruptedState: 'TASK_STATE_AUTH_REQUIRED',
         note: 'A submitted task enters TASK_STATE_AUTH_REQUIRED while a human witness is required, then resolves to TASK_STATE_COMPLETED on approval or TASK_STATE_REJECTED on refusal or deadline.',
       },
-      agentIdentity: PAY_TO_HEDERA ? proctorGateUaid(PAY_TO_HEDERA, HEDERA_NETWORK) : null,
+      agentIdentity: {
+        hcs14: PAY_TO_HEDERA ? proctorGateUaid(PAY_TO_HEDERA, HEDERA_NETWORK) : null,
+        erc8004: ARC_AGENT_ID ? `eip155:${ARC_CHAIN_ID}:${ERC8004.identity}/${ARC_AGENT_ID}` : null,
+      },
     });
   });
 
