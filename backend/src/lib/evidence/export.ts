@@ -24,7 +24,7 @@
  *              -> the witness nullifier, an identifier issued by a party that
  *                 is not the deployer, bound to a liveness proof.
  *
- *   Art 14(5)  "no action or decision is taken by the deployer on the basis of
+ *   Art 14(5)  SCOPE-QUALIFIED, see below. "no action or decision is taken by the deployer on the basis of
  *               the identification resulting from the system unless that
  *               identification has been separately verified and confirmed by at
  *               least two natural persons"
@@ -73,6 +73,17 @@ export interface ExportRecord {
   attestation: {
     body: string;
     attestorSig: string;
+    /**
+     * WHICH TOPIC this sequence number belongs to.
+     *
+     * Sequence numbers are per-topic and restart at 1 on a new one, so a bare
+     * sequence number is ambiguous the moment a deployer has ever used more
+     * than one topic. Without this a verifier compares a record against a
+     * completely unrelated message that happens to share its number, and
+     * correctly reports a mismatch, and the export fails for a reason that has
+     * nothing to do with its integrity.
+     */
+    topicId: string | null;
     sequenceNumber: string | null;
     consensusTimestamp: string | null;
     runningHash: string | null;
@@ -114,8 +125,12 @@ export const REGULATORY_MAPPING: Record<string, string> = {
     'records[].period carries start and end timestamps, plus a consensus timestamp assigned by the Hedera network rather than by the deployer.',
   'Art 12(3)(d)':
     'records[].attestation binds the witness nullifier, an identifier issued by World rather than by the deployer, to a liveness proof for that specific decision.',
-  'Art 14(5)':
-    'Each attestation records both the operator and witness nullifiers, and an `ind` field stating whether their distinctness is cryptographic or a policy property of the rota.',
+  'Art 14(4)':
+    'High-risk systems must be effectively overseen by natural persons able to interrupt them. The gate IS that interruption: the action does not proceed unless a person decides it should, and the default is that it does not.',
+  'Art 14(5), scope-qualified':
+    'Each attestation records both the operator and witness nullifiers, and an `ind` field stating whether their distinctness is cryptographic or a policy property of the rota. NOTE: Art 14(5) applies only to high-risk systems under Annex III point 1(a), remote biometric identification. It does NOT bind a deployer whose system is not that. We produce the evidence regardless, because it is the strictest oversight bar the Act names.',
+  'Art 12(1), completeness':
+    'Each attestation carries a dense per-deployer issuance number `sq`, assigned when the decision was raised rather than when it resolved. An omitted record leaves a visible gap, so the log can be shown to be complete and not merely unaltered.',
 };
 
 export const HOW_TO_VERIFY: string[] = [
@@ -124,6 +139,8 @@ export const HOW_TO_VERIFY: string[] = [
   'Re-verify each World proof by POSTing records[].idkitResult unchanged to anchors.worldVerifyUrl + /api/v4/verify/ + anchors.rpId.',
   'Recover the EIP-712 signer of each attestation body and compare against anchors.attestorAddress.',
   'Confirm the witness nullifier differs from the operator nullifier in each attestation core.',
+  'Check COMPLETENESS, which none of the above tests: read the `sq` issuance number out of each on-chain message, group by the operator nullifier `on`, and confirm the numbers are dense. A decision that was never submitted breaks no hash and no signature, so a gap here is the only thing that reveals it.',
+  'Confirm the witness was actually paid: each record carries a WITNESS_FEE payment with a transaction id resolvable on the public explorer. An oversight step nobody was compensated for is the failure mode this product exists to remove, so an unpaid record is a finding, not a formality.',
   'None of the above contacts Proctor. If any step fails, the record is not evidence.',
 ];
 
