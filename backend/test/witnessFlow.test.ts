@@ -17,6 +17,7 @@ import { verifyWitnessProof } from '../src/lib/world/verify.ts';
 import { hashSignal } from '@worldcoin/idkit-core/hashing';
 import { buildAttestation, classifyIndependence } from '../src/lib/attestation/build.ts';
 import { DEMO_POLICY } from '../src/lib/policy/evaluate.ts';
+import { issueDecision } from '../src/lib/decision/issue.ts';
 
 const S = `wf${Date.now()}`;
 let orgId = '', agentId = '', witnessId = '';
@@ -45,14 +46,12 @@ const openDecision = async () => {
     action: { kind: 'transfer', asset: 'EUR', amount: '41200.00', counterparty: 'Meridian Logistics' },
     nonce, issuedAt: new Date().toISOString(),
   };
-  const d = await prismaQuery.decision.create({
-    data: {
-      orgId, agentId, state: 'OPEN',
+  const d = await issueDecision(orgId, {
+      agentId, state: 'OPEN',
       preimage, decisionHash: decisionHash(preimage),
       humanLine: 'Release EUR 41,200 to Meridian Logistics?',
       nonce, witnessTokenHash: hash, policyHash: policyHash(DEMO_POLICY),
       expiresAt: new Date(Date.now() + 60_000),
-    },
   });
   return { id: d.id, token, decisionHash: d.decisionHash };
 };
@@ -61,6 +60,9 @@ const proofFor = (dh: string, nullifier = WITNESS_NULLIFIER) => ({
   protocol_version: '3.0',
   nonce: '0xnonce',
   action: 'proctor-witness-approval',
+  // The widget requests require_user_presence, so a real device proof carries
+  // this. Without it the credential proves possession of a phone, not a human.
+  user_presence_completed: true,
   responses: [{
     identifier: 'device',
     signal_hash: hashSignal(dh),
@@ -101,6 +103,7 @@ test('HAPPY PATH: dispatch, verify a proof, approve, attest', async () => {
 
   const att = await buildAttestation({
     decisionHash: decision.decisionHash,
+    orgSeq: decision.orgSeq,
     outcome: 'APPROVE',
     agentUaid: `uaid:aid:${S}`,
     worldProofDigest: 'a'.repeat(64),
@@ -155,6 +158,7 @@ test('REFUSAL requires no proof and still produces evidence', async () => {
 
   const att = await buildAttestation({
     decisionHash: (await prismaQuery.decision.findUniqueOrThrow({ where: { id } })).decisionHash,
+    orgSeq: (await prismaQuery.decision.findUniqueOrThrow({ where: { id } })).orgSeq,
     outcome: 'REFUSE',
     agentUaid: `uaid:aid:${S}`,
     worldProofDigest: null,
@@ -182,4 +186,17 @@ test('every decision leaves an append-only event trail', async () => {
   await approveDecision(id);
   const events = await prismaQuery.decisionEvent.findMany({ where: { decisionId: id }, orderBy: { at: 'asc' } });
   expect(events.map((e) => e.kind)).toEqual(['state.DISPATCHED', 'state.APPROVED']);
+});
+
+test('a refusal reports independence, and reports it as policy', () => {
+  // Regression: the REFUSE branch omitted `independence` while the response
+  // schema declared it, so the field silently vanished and clients read
+  // undefined. The attestation always classifies it, so the API disagreed
+  // with the record on the topic.
+  //
+  // It is always 'policy' for a refusal: no proof means no witness nullifier
+  // to compare against the operator's, and classifyIndependence requires that
+  // comparison before it will say 'crypto'.
+  expect(classifyIndependence(true, null, OPERATOR_NULLIFIER)).toBe('policy');
+  expect(classifyIndependence(false, null, OPERATOR_NULLIFIER)).toBe('policy');
 });
