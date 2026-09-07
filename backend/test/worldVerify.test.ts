@@ -114,6 +114,26 @@ test('ORB_PRESENCE requires user_presence_completed', () => {
   expect(verifyWitnessProof(input({ raw: v4(true), mode: 'ORB_PRESENCE' })).ok).toBe(true);
 });
 
+test('THE FALLBACK LIVENESS PROPERTY: a device proof without presence is refused', () => {
+  // `deviceLegacy` is deprecated by World and proves possession of a phone,
+  // not the presence of a human. The witness widget therefore requests
+  // require_user_presence, and this asserts the backend actually ENFORCES it.
+  // Requesting a property and not checking it is how a control becomes
+  // decoration, and this is the property the whole product rests on while the
+  // Selfie Check beta flag is pending.
+  const device = (presence?: boolean): ProofResult => ({
+    protocol_version: '3.0', nonce: '0x1', action: 'a',
+    user_presence_completed: presence,
+    responses: [{ identifier: 'device', signal_hash: hashSignal(DECISION_HASH), nullifier: WITNESS_NULL }],
+  });
+
+  expect(verifyWitnessProof(input({ raw: device(undefined), mode: 'DEVICE_DEV_ONLY' })))
+    .toEqual({ ok: false, reason: 'no_liveness' });
+  expect(verifyWitnessProof(input({ raw: device(false), mode: 'DEVICE_DEV_ONLY' })))
+    .toEqual({ ok: false, reason: 'no_liveness' });
+  expect(verifyWitnessProof(input({ raw: device(true), mode: 'DEVICE_DEV_ONLY' })).ok).toBe(true);
+});
+
 test('rejects an empty responses array instead of throwing', () => {
   expect(verifyWitnessProof(input({ raw: proof({ responses: [] }) })))
     .toEqual({ ok: false, reason: 'malformed_proof' });
