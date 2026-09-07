@@ -9,13 +9,19 @@
 import { prismaQuery } from '../src/lib/prisma.ts';
 import { hashSignal } from '@worldcoin/idkit-core/hashing';
 import { evaluatePolicy, DEMO_POLICY, type AgentAction } from '../src/lib/policy/evaluate.ts';
-import { decisionHash, policyHash } from '../src/lib/attestation/hash.ts';
+import { decisionHash, policyHash, worldProofDigest } from '../src/lib/attestation/hash.ts';
+import { canonical } from '../src/lib/attestation/canonical.ts';
 import {
   mintWitnessToken, mintNonce, dispatchDecision, approveDecision, refuseDecision,
 } from '../src/lib/decision/lifecycle.ts';
 import { selectWitness } from '../src/lib/witness/dispatch.ts';
 import { verifyWitnessProof } from '../src/lib/world/verify.ts';
 import { buildAttestation, classifyIndependence } from '../src/lib/attestation/build.ts';
+import { attestDecision } from '../src/lib/attestation/persist.ts';
+import { issueDecision } from '../src/lib/decision/issue.ts';
+import { payWitness } from '../src/lib/payout/witness.ts';
+import { usingDemoAttestor } from '../src/lib/attestation/build.ts';
+import { WITNESS_HEDERA_ACCOUNT } from '../src/config/main-config.ts';
 
 const choice = (process.argv[2] ?? 'approve').toUpperCase() as 'APPROVE' | 'REFUSE';
 
@@ -44,15 +50,13 @@ const nonce = mintNonce();
 const { token, hash } = mintWitnessToken();
 const preimage = { action, nonce, orgSlug: org.slug, agentUaid: agent.uaid, issuedAt: new Date().toISOString() };
 
-const decision = await prismaQuery.decision.create({
-  data: {
-    orgId: org.id, agentId: agent.id, state: 'OPEN',
+const decision = await issueDecision(org.id, {
+    agentId: agent.id, state: 'OPEN',
     preimage: preimage as never,
     decisionHash: decisionHash(preimage),
     humanLine: policy.humanLine,
     nonce, witnessTokenHash: hash, policyHash: policyHash(DEMO_POLICY),
     expiresAt: new Date(Date.now() + 60_000),
-  },
 });
 console.log('3. decision      :', decision.id);
 console.log('   human line    :', decision.humanLine);
@@ -66,7 +70,7 @@ console.log('4. dispatched to the rota, 60s deadline running');
 if (choice === 'REFUSE') {
   const r = await refuseDecision(decision.id);
   const att = await buildAttestation({
-    decisionHash: decision.decisionHash, outcome: 'REFUSE', agentUaid: agent.uaid,
+    decisionHash: decision.decisionHash, orgSeq: decision.orgSeq, outcome: 'REFUSE', agentUaid: agent.uaid,
     worldProofDigest: null, witnessNullifier: null,
     operatorNullifier: org.operatorNullifier!.toFixed(0),
     witnessAuth: 'token', independence: 'policy',
@@ -74,7 +78,19 @@ if (choice === 'REFUSE') {
   });
   console.log('5. witness REFUSED. No proof required: refuse is the default outcome.');
   console.log('6. attestation   :', att.bodyBytes, 'bytes, wid=null, wa=token');
+  const rr = await attestDecision(decision.id);
+  console.log('7. evidence log  :', rr.ok ? `HCS seq #${rr.sequenceNumber}` : `not written (${rr.reason})`);
+
+  // A refusal is paid too. Paying only for approvals would price the witness
+  // to say yes, which is the incentive this product exists to remove.
+  const rp = await payWitness(decision.id);
+  console.log('8. witness paid  :', rp.ok ? `$${rp.amountUsd} for refusing` : `NOT SETTLED (${rp.reason})`);
+  if (rp.ok) console.log('   hashscan      :', rp.explorerUrl);
+
   console.log('\n   The agent is NOT released.');
+  if (usingDemoAttestor() || !rr.ok) {
+    console.log('   (unconfigured run: see `bun run doctor` for what is missing)');
+  }
   process.exit(0);
 }
 
@@ -84,6 +100,10 @@ const fresh = await prismaQuery.decision.findUniqueOrThrow({ where: { id: decisi
 const witnessRow = await prismaQuery.witness.findUniqueOrThrow({ where: { id: witness.id } });
 const proof = {
   protocol_version: '3.0', nonce: '0xdemo', action: 'proctor-witness-approval',
+  // The witness widget requests require_user_presence, so a real proof carries
+  // this. Without it the credential proves possession of a phone, not that a
+  // human was there, and the backend refuses it.
+  user_presence_completed: true,
   responses: [{
     identifier: 'device',
     signal_hash: hashSignal(fresh.decisionHash),
@@ -102,9 +122,31 @@ console.log('5. proof         :', verified.ok ? 'VERIFIED' : `REJECTED (${(verif
 if (!verified.ok) process.exit(1);
 console.log('   signal matched this decision, and the witness is not the operator');
 
+// Persist the proof BEFORE resolving, exactly as the witness route does.
+//
+// Without this the demo printed `ind=crypto` while attestDecision — which
+// rebuilds the record from the DATABASE, not from the object above — wrote
+// `wid:null, ind:policy` to the log. The console said one thing and the
+// evidence said another, which is precisely the failure this product exists
+// to detect. Now they agree because they read the same row.
+await prismaQuery.worldProof.create({
+  data: {
+    decisionId: decision.id,
+    witnessId: witness.id,
+    raw: proof as never,
+    rawDigest: worldProofDigest(canonical(proof)),
+    signalHash: proof.responses[0]!.signal_hash,
+    identifier: proof.responses[0]!.identifier,
+    protocolVersion: proof.protocol_version,
+    nullifier: witnessRow.nullifier.toFixed(0),
+    userPresenceCompleted: proof.user_presence_completed === true,
+    mode: 'DEVICE_DEV_ONLY',
+  },
+}).catch((e) => console.error('   proof persist failed:', e));
+
 const approved = await approveDecision(decision.id);
 const att = await buildAttestation({
-  decisionHash: fresh.decisionHash, outcome: 'APPROVE', agentUaid: agent.uaid,
+  decisionHash: fresh.decisionHash, orgSeq: fresh.orgSeq, outcome: 'APPROVE', agentUaid: agent.uaid,
   worldProofDigest: 'demo'.padEnd(64, '0'),
   witnessNullifier: witnessRow.nullifier.toFixed(0),
   operatorNullifier: org.operatorNullifier!.toFixed(0),
@@ -117,4 +159,38 @@ const att = await buildAttestation({
 console.log('6. APPROVED in', approved.ok ? approved.reviewMs : '?', 'ms');
 console.log('7. attestation   :', att.bodyBytes, 'bytes, ind=' + att.core.ind);
 console.log('   signed by     :', att.attestorAddress);
-console.log('\n   The agent is released. The evidence is independently verifiable.');
+
+const written = await attestDecision(decision.id);
+console.log('8. evidence log  :', written.ok ? `HCS seq #${written.sequenceNumber}` : `not written (${written.reason})`);
+
+// The leg that separates this from the free approve-button every agent
+// framework ships. Paying is what stops oversight being delegated to a script.
+const paid = await payWitness(decision.id);
+if (paid.ok) {
+  console.log('9. witness paid  :', `$${paid.amountUsd} (${paid.tinybar} tinybar) -> ${WITNESS_HEDERA_ACCOUNT}`);
+  console.log('   hashscan      :', paid.explorerUrl);
+  // This script resolves in milliseconds, so the fee lands on the minimum
+  // rather than on real attention. A human taking 30s earns ~$0.06. Said out
+  // loud because a reader should not have to wonder why the number is tiny.
+  console.log('   note          : floor-priced; the scripted review took',
+    approved.ok ? `${approved.reviewMs}ms` : '?', 'not 30s');
+} else {
+  console.log('9. witness paid  :', `NOT SETTLED (${paid.reason})`, paid.recorded ? '- recorded as owed' : '');
+}
+
+// Say what actually happened, not what happens when everything is configured.
+// A record signed by the published demo key and never written to a topic is not
+// independently verifiable, and claiming otherwise here would be the exact
+// overclaim this project exists to argue against.
+if (written.ok && !usingDemoAttestor()) {
+  console.log('\n   The agent is released. The evidence is independently verifiable.');
+} else {
+  console.log('\n   The agent is released. The oversight loop ran in full.');
+  const missing: string[] = [];
+  if (usingDemoAttestor()) missing.push('ATTESTOR_PRIVATE_KEY (signed with the published demo key)');
+  if (!written.ok) missing.push(`HEDERA_OPERATOR_ID/KEY + HEDERA_TOPIC_ID (${written.reason})`);
+  console.log('   NOT yet independently verifiable. Missing: ' + missing.join('; '));
+  console.log('   Run `bun run doctor` for the full picture.');
+}
+await new Promise((r) => setTimeout(r, 6000));   // let mirror confirmation land
+process.exit(0);
