@@ -7,7 +7,8 @@
     "proctor-verify": "./bin/verify.ts"
   },
   "scripts": {
-    "verify": "bun bin/verify.ts"
+    "verify": "bun bin/verify.ts",
+    "arc:deposit": "bun scripts/arc-deposit.ts"
   },
   "dependencies": {}
 }
