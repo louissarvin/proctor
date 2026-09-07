@@ -8,7 +8,7 @@
  */
 import { prismaQuery } from '../src/lib/prisma.ts';
 import { proctorAgentUaid } from '../src/lib/attestation/uaid.ts';
-import { HEDERA_AGENT_ID, HEDERA_NETWORK } from '../src/config/main-config.ts';
+import { HEDERA_AGENT_ID, HEDERA_NETWORK, WITNESS_HEDERA_ACCOUNT } from '../src/config/main-config.ts';
 
 const SLUG = 'demo-org';
 
@@ -16,10 +16,12 @@ const SLUG = 'demo-org';
 // World ID enrolment performed out of band, before any decision exists.
 const OPERATOR_NULLIFIER = '11111111111111111111111111111111';
 const WITNESS_NULLIFIER  = '22222222222222222222222222222222';
+const WITNESS_PAYOUT_ACCOUNT = WITNESS_HEDERA_ACCOUNT;
 
 const org = await prismaQuery.org.upsert({
   where: { slug: SLUG },
-  update: { operatorNullifier: OPERATOR_NULLIFIER, operatorEnrolledAt: new Date() },
+  // The ONLY org allowed to write to the shared, admin-key-less evidence topic.
+  update: { operatorNullifier: OPERATOR_NULLIFIER, operatorEnrolledAt: new Date(), attestable: true },
   create: {
     name: 'Demo Deployer Ltd',
     slug: SLUG,
@@ -28,6 +30,7 @@ const org = await prismaQuery.org.upsert({
     // operator" checkable rather than asserted.
     operatorNullifier: OPERATOR_NULLIFIER,
     operatorEnrolledAt: new Date(),
+    attestable: true,
   },
 });
 
@@ -40,10 +43,13 @@ const agent = await prismaQuery.agent.upsert({
 
 const witness = await prismaQuery.witness.upsert({
   where: { orgId_nullifier: { orgId: org.id, nullifier: WITNESS_NULLIFIER } },
-  update: { state: 'ENROLLED' },
+  update: { state: 'ENROLLED', hederaAccountId: WITNESS_PAYOUT_ACCOUNT || null },
   create: {
     orgId: org.id,
     nullifier: WITNESS_NULLIFIER,
+    // Where the witness fee lands. HBAR needs no token association, so a
+    // person who has never held a token can still be paid.
+    hederaAccountId: WITNESS_PAYOUT_ACCOUNT || null,
     // Held by the org, never published to HCS. The evidence log carries the
     // nullifier, not the name.
     label: 'On-call approver (rota)',
@@ -57,6 +63,7 @@ console.log('  org      :', org.slug, `(${org.id})`);
 console.log('  agent    :', agent.label);
 console.log('             ', agent.uaid);
 console.log('  witness  :', witness.label, `role=${witness.role}`);
+console.log('  payout   :', witness.hederaAccountId ?? 'NOT SET (fee will be recorded as owed, not paid)');
 console.log('');
 console.log('  operator nullifier :', OPERATOR_NULLIFIER.slice(0, 12) + '…');
 console.log('  witness  nullifier :', WITNESS_NULLIFIER.slice(0, 12) + '…  (distinct: independence is checkable)');
