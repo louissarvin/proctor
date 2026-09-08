@@ -9,38 +9,98 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OperatorRouteImport } from './routes/operator'
+import { Route as ConsoleRouteImport } from './routes/console'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WTokenRouteImport } from './routes/w.$token'
+import { Route as HandoffTokenRouteImport } from './routes/handoff.$token'
 
+const OperatorRoute = OperatorRouteImport.update({
+  id: '/operator',
+  path: '/operator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsoleRoute = ConsoleRouteImport.update({
+  id: '/console',
+  path: '/console',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WTokenRoute = WTokenRouteImport.update({
+  id: '/w/$token',
+  path: '/w/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HandoffTokenRoute = HandoffTokenRouteImport.update({
+  id: '/handoff/$token',
+  path: '/handoff/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/console': typeof ConsoleRoute
+  '/operator': typeof OperatorRoute
+  '/handoff/$token': typeof HandoffTokenRoute
+  '/w/$token': typeof WTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/console': typeof ConsoleRoute
+  '/operator': typeof OperatorRoute
+  '/handoff/$token': typeof HandoffTokenRoute
+  '/w/$token': typeof WTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/console': typeof ConsoleRoute
+  '/operator': typeof OperatorRoute
+  '/handoff/$token': typeof HandoffTokenRoute
+  '/w/$token': typeof WTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/console' | '/operator' | '/handoff/$token' | '/w/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/console' | '/operator' | '/handoff/$token' | '/w/$token'
+  id:
+    | '__root__'
+    | '/'
+    | '/console'
+    | '/operator'
+    | '/handoff/$token'
+    | '/w/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConsoleRoute: typeof ConsoleRoute
+  OperatorRoute: typeof OperatorRoute
+  HandoffTokenRoute: typeof HandoffTokenRoute
+  WTokenRoute: typeof WTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/operator': {
+      id: '/operator'
+      path: '/operator'
+      fullPath: '/operator'
+      preLoaderRoute: typeof OperatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/console': {
+      id: '/console'
+      path: '/console'
+      fullPath: '/console'
+      preLoaderRoute: typeof ConsoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +108,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/w/$token': {
+      id: '/w/$token'
+      path: '/w/$token'
+      fullPath: '/w/$token'
+      preLoaderRoute: typeof WTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/handoff/$token': {
+      id: '/handoff/$token'
+      path: '/handoff/$token'
+      fullPath: '/handoff/$token'
+      preLoaderRoute: typeof HandoffTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConsoleRoute: ConsoleRoute,
+  OperatorRoute: OperatorRoute,
+  HandoffTokenRoute: HandoffTokenRoute,
+  WTokenRoute: WTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
