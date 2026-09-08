@@ -1,0 +1,49 @@
+{
+  "name": "@louissarvin/proctor-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "private": false,
+  "description": "Human oversight for MCP agents. The human-in-the-loop the MCP spec asks for and does not provide.",
+  "bin": {
+    "proctor-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@x402/core": "2.24.0",
+    "@x402/fetch": "2.24.0",
+    "@x402/hedera": "2.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "typescript": "^7.0.2"
+  },
+  "mcpName": "io.github.louissarvin/proctor",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "human-in-the-loop",
+    "x402",
+    "oversight",
+    "hedera",
+    "ai-agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/louissarvin/proctor.git",
+    "directory": "mcp"
+  }
+}
