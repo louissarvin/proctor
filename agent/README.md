@@ -43,3 +43,23 @@ curl -s "https://testnet.mirrornode.hedera.com/api/v1/accounts/$HEDERA_AGENT_ID"
 # can it receive HTS tokens without an explicit association?
 # maxAutomaticTokenAssociations must be -1, or associate 0.0.429274 explicitly
 ```
+
+
+## Configuration
+
+```bash
+cp .env.example .env   # then fill in the three secrets from backend/.env
+bun src/index.ts       # pays on whichever rail the gate offers first
+PREFER_NETWORK=eip155:5042002 bun src/index.ts   # force Arc
+```
+
+**`AGENT_ALLOWED_TOKENS` is not optional.** The agent refuses to pay in an asset its
+operator has not approved, which is the correct default for software that spends money
+unattended. The gate settles in an HTS token, so that token id must be listed or every
+payment is rejected by spend controls before it is even attempted — with an error that
+says the requirements were rejected, not that the asset was unapproved.
+
+**`ARC_PRIVATE_KEY` must be an EOA.** Circle Gateway verifies with `ecrecover`, not
+ERC-1271, so a smart-contract wallet signs something that looks valid and is rejected at
+settlement. Payments draw from a Gateway *balance*, not the wallet balance; fund it with
+`bun run arc:deposit` in `backend/`.
