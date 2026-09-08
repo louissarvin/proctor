@@ -14,6 +14,23 @@ export const env = createEnv({
 
   client: {
     VITE_APP_TITLE: z.string().min(1).optional(),
+    /** Proctor API. The witness PWA and console both talk to this. */
+    /**
+     * Proctor API base.
+     *
+     * A PHONE CANNOT USE localhost. The witness flow ends on a phone, so for any
+     * real test this must be an address that phone can reach: the LAN IP over
+     * http, or a tunnel over https. Mixing schemes fails — an https page cannot
+     * call an http API.
+     */
+    VITE_API_URL: z.string().url().default('http://localhost:3700'),
+    /** World ID app id. PUBLIC. The RP *signing key* never leaves the server. */
+    VITE_WORLD_APP_ID: z.string().optional(),
+    /**
+     * DEVICE until the Selfie Check beta flag is granted, then SELFIE.
+     * The verification path is identical; this is the one-line swap.
+     */
+    VITE_WORLD_MODE: z.enum(['DEVICE', 'SELFIE']).default('DEVICE'),
   },
 
   /**
