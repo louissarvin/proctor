@@ -1,0 +1,17 @@
+{
+  "name": "hedera-harness-hcs-validator",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "HCS topic + running hash chain validator for the Hedera Harness CHAIN stage",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build --silent && node --test test/*.test.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.10.0"
+  },
+  "dependencies": {}
+}
