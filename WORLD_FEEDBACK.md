@@ -145,9 +145,95 @@ In the live Portal, creating an action (`action_v4_...`) offers **only** `Identi
 documented two-action pattern is not constructible, and an integrator following it will look for
 a control that does not exist.
 
+### 2.3 Nothing tells you whether a credential is enabled for your app
+*2026-09-09*
+
+Selfie Check is access-gated per app. There is no way to ask whether the flag is on.
+
+We looked: the Portal serves HTML rather than JSON for app and RP routes, and
+`POST /api/v4/verify/{rp_id}` answers (so the RP is clearly live and registered) but says
+nothing about which credentials that app may request. The only way to discover the answer
+is to put the preset in front of a real user on a real phone and see what happens.
+
+That turns a config question into a field test. A single read-only field on the app page —
+"Selfie Check: enabled / not enabled / requested" — would close it. As it stands, an
+integrator building against a gated credential cannot distinguish "not enabled yet" from
+"enabled, and my integration is wrong", which are very different debugging paths.
+
+### 2.4 Sandbox enrolment is team-scoped, and that is mentioned once, parenthetically
+*2026-09-09*
+
+From the access guide: *"Enrollment is tied to a team, so open the sandbox panel from
+within a team."*
+
+That is the whole warning. An account viewing the panel outside a team context sees a form
+that looks functional and submits into nothing obvious. Given that the panel is now the
+primary access route, this deserves to be a callout rather than a subordinate clause —
+it is the difference between a request that queues and a request that does not.
+
 ---
 
+### 2.5 BLOCKER: a bundler failure is reported as `generic_error` with an empty object
+*2026-09-09*
+
+This cost us most of a day, and the cause was three lines away in the browser console.
+
+IDKit ships a wasm-bindgen binary. Under **Vite** — the default React toolchain — the
+dependency optimiser rewrites the package's JS into `.vite/deps` but does **not** copy
+`idkit_wasm_bg.wasm` beside it:
+
+```
+GET /node_modules/.vite/deps/idkit_wasm_bg.wasm   404
+Failed to initialize IDKit WASM:
+  TypeError: Failed to execute 'compile' on 'WebAssembly': HTTP status code is not ok
+```
+
+What the integrator receives:
+
+| Layer | What it says |
+|---|---|
+| `onError` | `generic_error` |
+| debug log | `[IDKit] Flow error: {}` — an **empty object** |
+| the witness | "Something went wrong. Please try again." |
+
+**Every credential fails identically**, because the SDK never initialises and no
+credential is ever requested. We changed `environment`, rotated the signing key, switched
+`deviceLegacy` → `proofOfHuman` → `selfieCheckLegacy`, moved to HTTPS, and re-checked the
+action — all reasonable, all irrelevant, because the error pointed at none of it.
+
+The fix is one line of integrator config:
+
+```ts
+// vite.config.ts — idkit-core ONLY. Excluding the React wrapper too leaves its
+// CJS dependency `qrcode` unconverted: "does not provide an export named 'default'".
+optimizeDeps: { exclude: ['@worldcoin/idkit-core'] }
+```
+
+Three asks, in order of value:
+
+1. **Detect it.** A WASM init failure is a distinct, detectable condition. Surface it as
+   its own error code rather than folding it into `generic_error`.
+2. **Never report an empty object.** `Flow error: {}` is strictly worse than no log: it
+   says the SDK knows something failed and has nothing to say about it.
+3. **Document the Vite config.** One line in the integration guide removes this entirely
+   for what is likely the most common React toolchain among your integrators.
+
+Related: the SDK already computes 26 specific codes (`credential_unavailable`,
+`invalid_rp_signature`, `unknown_rp`, `rp_signature_expired`, `user_presence_failed`,
+`world_id_4_not_available`, ...). We only learned they existed by running `strings` over
+`idkit_wasm_bg.wasm`. None of them reached us.
+
 ## 3. Sandbox App states, proof flows, test users, errors, and edge cases
+
+> **Scope note, stated plainly.** Everything below is about *reaching* Sandbox, because
+> as of 2026-09-09 we never got in: the enrolment request for `capinho77@gmail.com` is
+> still pending. We therefore cannot report on states, proof flows, test users or edge
+> cases from the inside, and we are not going to invent observations we did not make.
+>
+> That gap is itself the finding. A developer who follows the documented path can spend a
+> week without reaching the first testable screen, and nothing in the flow distinguishes
+> "queued" from "went nowhere". The items below are the obstacles that consumed that week.
+
 
 ### 3.1 BLOCKER: iOS Sandbox enrollment silently requires an email-based Portal account
 *2026-09-02*
