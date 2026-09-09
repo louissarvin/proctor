@@ -49,7 +49,7 @@ Proctor binds four things a self-hosted approve button cannot:
 
 1. **The decision hash** — the witness's liveness proof is cryptographically bound to *this* decision via the World `signal`, not to "a human approved something at some point"
 2. **A liveness proof issued by a party that is not the deployer** — World ID
-3. **A nullifier proving the approver is not the operator** — two natural persons, checkable by a third party
+3. **A nullifier proving the approver is not the operator** — two distinct accounts, checkable by a third party rather than asserted
 4. **A consensus timestamp on a log with no admin key** — a clock the deployer did not choose, on a record nobody can rewrite, **including us**
 
 Any third party verifies the whole record offline, against Hedera's mirror node and World's own verifier, **without trusting Proctor**.
