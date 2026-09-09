@@ -111,27 +111,90 @@ rather than a claim:
 ```json
 {
   "x402Version": 2,
-  "accepts": [{
-    "scheme": "exact",
-    "network": "hedera:testnet",
-    "amount": "420000",
-    "asset": "0.0.429274",
-    "payTo": "0.0.10349677",
-    "maxTimeoutSeconds": 180,
-    "extra": { "feePayer": "0.0.7162784" }
-  }]
+  "accepts": [
+    {
+      "scheme": "exact",
+      "network": "hedera:testnet",
+      "amount": "100000000",
+      "asset": "0.0.0",
+      "payTo": "0.0.10349677",
+      "maxTimeoutSeconds": 180,
+      "extra": { "feePayer": "0.0.7162784" }
+    },
+    {
+      "scheme": "exact",
+      "network": "eip155:5042002",
+      "amount": "420000",
+      "asset": "0x3600000000000000000000000000000000000000",
+      "payTo": "0x361c196aF4d2ec35C39AD0BEd1afb7ed01553aEf",
+      "maxTimeoutSeconds": 604900,
+      "extra": {
+        "name": "GatewayWalletBatched",
+        "version": "1",
+        "verifyingContract": "0x0077777d7eba4688bdef3e311b846f25870a19b9",
+        "minValiditySeconds": 604800
+      }
+    }
+  ]
 }
+```
+
+Captured from the live service. Reproduce it with:
+
+```bash
+curl -s -i -X POST http://localhost:3700/v1/gate/decisions \
+  -H 'content-type: application/json' \
+  -d '{"action":{"kind":"transfer","amount":"41200.00"}}' \
+  | grep -i '^payment-required' | cut -d' ' -f2 | base64 -d | jq
 ```
 
 | Field | Origin |
 |---|---|
 | `extra.feePayer` `0.0.7162784` | **Blocky402's** fee payer. `x402.org` would show `0.0.9185802` |
-| `amount` `420000` | library converted `price: "$0.42"` |
-| `asset` `0.0.429274` | resolved by `ExactHederaScheme`; USDC on Hedera is an **HTS token**, so every settlement moves HTS |
+| `asset` `0.0.0` on Hedera | HBAR. See "Why HBAR and not USDC" below. USDC on Hedera is `0.0.429274`, an **HTS token**, and the code still selects it behind `GATE_ASSET=USDC` |
+| `asset` `0x3600…0000` on Arc | USDC, 6 decimals, at Arc's ERC-20 interface. `420000` = $0.42 |
+| `maxTimeoutSeconds` `604900` on Arc | Circle Gateway rejects authorizations valid for under 7 days (`minValiditySeconds` 604800). The two rails legitimately differ |
+| `verifyingContract` | Required for the buyer to build the right EIP-712 domain. `ExactEvmScheme` drops it; `GatewayEvmScheme` preserves it |
 
-| Artefact | Status |
+**Two rails, two facilitators.** No single facilitator serves both: Blocky402 has Hedera
+and not Arc, Circle Gateway has Arc and not Hedera. The resource server takes an array and
+routes each entry to whichever one advertises it.
+
+| Artefact | Link |
 |---|---|
-| Gate payment settlement tx | _pending: needs the paying agent_ |
+| **Gate payment, settled through Blocky402** | [`0.0.7162784@1788535476.476844044`](https://hashscan.io/testnet/transaction/0.0.7162784-1788535476-476844044) |
+| Most recent agent settlement | [`0.0.7162784@1788697690.139040175`](https://hashscan.io/testnet/transaction/0.0.7162784-1788697690-139040175) |
+| **Witness fee, approval** | [`0.0.10349667@1788697676.088483944`](https://hashscan.io/testnet/transaction/0.0.10349667-1788697676-088483944) |
+| **Witness fee, refusal** | [`0.0.10349667@1788697685.529738778`](https://hashscan.io/testnet/transaction/0.0.10349667-1788697685-529738778) |
+
+The gate payments are `CRYPTOTRANSFER`, `result: SUCCESS`:
+
+```
+0.0.10359475  -1.0000 HBAR   the paying agent
+0.0.10349677  +1.0000 HBAR   the Proctor treasury
+fee payer     0.0.7162784    BLOCKY402
+```
+
+The fee payer is the proof: `0.0.7162784` is Blocky402's account, so the transaction was
+submitted by the facilitator Hedera's qualification bullet names. `x402.org` would show
+`0.0.9185802`.
+
+**The witness fee transfers are the other half**, and they are the leg that separates this
+from the free approve-button every agent framework ships. Note that a **refusal is paid
+too**: paying only for approvals would price the witness to say yes.
+
+### Why HBAR and not USDC
+
+The scheme, the facilitator and the wire are identical either way; only the asset id
+differs. USDC is the intended asset and the code still supports it behind `GATE_ASSET`,
+but Circle's Hedera faucet did not deliver testnet USDC despite two confirmed "Tokens
+sent" responses and an explicit `TokenAssociateTransaction`. HBAR settles today, so the
+end-to-end claim is real rather than pending.
+
+```bash
+GATE_ASSET=HBAR   # settles now
+GATE_ASSET=USDC   # one variable, when the faucet delivers
+```
 
 ---
 
