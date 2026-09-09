@@ -223,3 +223,48 @@ uaid:aid:9373hj8Dco351vuqrK3p4veDXreeN6848f5A2qQKBdQK4Azmi2BL7UB7rA3Fwiq4KU;uid=
 
 Generated per the draft specification, SHA-384 then Base58, with a fixed test
 vector in `backend/test/uaid.test.ts` so any reader can reproduce the string.
+
+
+---
+
+## Arc testnet: ERC-8004 agent identity
+
+Registered in Circle's **canonical** ERC-8004 IdentityRegistry on Arc testnet.
+
+| | |
+|---|---|
+| Agent ID | **891434** |
+| Registry | [`0x8004A818BFB912233c491871b3d84c89A494BD9e`](https://testnet.arcscan.app/address/0x8004A818BFB912233c491871b3d84c89A494BD9e) |
+| Token | [instance 891434](https://testnet.arcscan.app/token/0x8004A818BFB912233c491871b3d84c89A494BD9e/instance/891434) |
+| Transaction | [`0xab73e419…d30ed9`](https://testnet.arcscan.app/tx/0xab73e419e168905b3e953d3e5ffd0ca79cfa398a775239bc99127daa86d30ed9) |
+| Owner | `0x361c196aF4d2ec35C39AD0BEd1afb7ed01553aEf` |
+| Chain | Arc testnet, 5042002 |
+
+Verified by reading the chain, not the receipt:
+
+```
+ownerOf(891434)  -> 0x361c196aF4d2ec35C39AD0BEd1afb7ed01553aEf
+tokenURI(891434) -> /.well-known/agent-card.json
+tx status success, block 60435128, gas used 177804
+```
+
+Reproduce: `cd backend && bun run arc:register`
+
+### Why both HCS-14 and ERC-8004
+
+The planning docs rejected ERC-8004 for a good reason: the spec wants per-chain
+singletons, so a self-deployed registry is a weaker claim than a canonical one, and
+**Hedera has no canonical ERC-8004 deployment**. That reasoning does not apply to Arc,
+where Circle ships canonical registries.
+
+So the agent carries the native identifier on each chain rather than forcing one:
+
+| Chain | Standard | Identifier |
+|---|---|---|
+| Hedera | HCS-14 (draft) | `uaid:aid:7usRrCYX…;registry=proctor;nativeId=hedera:testnet:0.0.10349677` |
+| Arc | ERC-8004 | `eip155:5042002:0x8004A818…/891434` |
+
+Both are published at `GET /.well-known/proctor.json`.
+
+Note the `tokenURI` points at a localhost agent card today. It becomes a public URL on
+deployment; the on-chain identity does not change.
