@@ -9,7 +9,7 @@
 ![Hedera](https://img.shields.io/badge/Hedera-HCS%20live-000000?style=flat-square)
 ![x402](https://img.shields.io/badge/x402-v2%20via%20Blocky402-2A6DF4?style=flat-square)
 ![World ID](https://img.shields.io/badge/World%20ID-4.0-7B3FE4?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-128%20passing-EE6A55?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-227%20passing-EE6A55?style=flat-square)
 ![Solidity](https://img.shields.io/badge/solidity-none-lightgrey?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
