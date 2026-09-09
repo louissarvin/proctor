@@ -1,0 +1,49 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.louissarvin/proctor",
+  "description": "Human oversight for AI agents. Blocks a tool call on a verified human who is not the operator, fails closed on a deadline, and returns a tamper-evident citation on a public ledger. The human-in-the-loop the MCP spec asks for and does not define.",
+  "repository": {
+    "url": "https://github.com/louissarvin/proctor",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@louissarvin/proctor-mcp",
+      "version": "1.0.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "PROCTOR_API",
+          "description": "Base URL of the Proctor gate. Defaults to http://localhost:3700.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "HEDERA_AGENT_ID",
+          "description": "Hedera account id of the paying agent, e.g. 0.0.12345. Set this with HEDERA_AGENT_KEY to settle a real x402 payment. Omit both and the tool falls back to Proctor's operator endpoint, which opens a real decision but settles nothing.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "HEDERA_AGENT_KEY",
+          "description": "ECDSA private key for HEDERA_AGENT_ID. Spends money: scope it to a funded testnet account and nothing else.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "AGENT_ALLOWED_TOKENS",
+          "description": "Comma-separated HTS token ids this agent may pay in. The agent's own guard: it refuses assets its operator never approved.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
