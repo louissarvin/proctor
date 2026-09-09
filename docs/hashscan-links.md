@@ -1,7 +1,7 @@
 # Verifiable artefacts
 
 Every claim below is checkable by a third party without contacting Proctor.
-All artefacts are on **Hedera testnet**, created 2026-09-04.
+All artefacts are on **Hedera testnet**. The evidence topic was created 2026-09-06.
 
 ---
 
