@@ -1,0 +1,67 @@
+flowchart TB
+    subgraph AGENT["① AI agent"]
+        direction TB
+        A1["supplier payment run<br/>EUR 41,200"]
+        A2["HOLD · 402 Payment Required"]
+        A4["verify the SIGNED OFFER<br/>signer must be the published attestor"]
+        A3["resumes only on APPROVE"]
+    end
+
+    subgraph API["② Proctor API · Fastify on Bun"]
+        direction TB
+        P1["POST /gate/evaluate<br/>free · 4 predicates"]
+        P2["POST /gate/decisions<br/>x402 · $0.42 · two rails"]
+        P4["7 assertions<br/>signal · nullifier · liveness · TTL"]
+        P5["TTL sweeper 1Hz<br/>fails CLOSED"]
+        P6["attestation · RFC 8785 → EIP-712<br/>carries sq = issuance number"]
+        P7["witness fee · metered<br/>refusals paid too"]
+    end
+
+    subgraph PHONE["③ Witness phone · PWA"]
+        direction LR
+        W1["one line · 60s deadline"]
+        W2["World ID liveness<br/>signal = decision hash"]
+    end
+
+    subgraph PAY["④ The agent pays · two rails, two facilitators"]
+        direction LR
+        B["Blocky402"] --> H["HTS 0.0.10394781<br/>custom fee schedule"]
+        C["Circle Gateway"] --> G["Arc · USDC<br/>batched nanopayment"]
+    end
+
+    subgraph OUT["⑤ The human gets paid · no facilitator"]
+        direction LR
+        F["HBAR transfer<br/>metered per second"]
+        S["Scheduled Transaction<br/>on-call retainer<br/>Hedera's clock, not ours"]
+    end
+
+    subgraph EVIDENCE["⑥ Public, independently verifiable"]
+        direction LR
+        T["HCS topic 0.0.10390147<br/>NO ADMIN KEY"]
+        V["verify/ · zero dependencies<br/>① chain intact<br/>② nothing WITHHELD"]
+        T --> V
+    end
+
+    A1 --> P1
+    P1 -- "escalate" --> A2 --> A4 --> P2
+    P2 -- "hedera:testnet" --> B
+    P2 -- "eip155:5042002" --> C
+    P2 -- "web push" --> W1 --> W2 --> P4
+    P5 -. "no answer = REFUSE" .-> P4
+    P4 --> P6 --> T
+    P4 --> P7 --> F
+    P7 -. "standby" .-> S
+    P6 --> A3
+
+    classDef hold fill:#7f1d1d,stroke:#ef4444,color:#fff,font-weight:bold
+    classDef chain fill:#064e3b,stroke:#10b981,color:#fff
+    classDef circle fill:#1e3a5f,stroke:#38bdf8,color:#fff
+    classDef verify fill:#1e3a8a,stroke:#60a5fa,color:#fff
+    classDef closed fill:#78350f,stroke:#f59e0b,color:#fff
+    classDef pay fill:#3b0764,stroke:#a855f7,color:#fff
+    class A2 hold
+    class B,H,T,S,F chain
+    class C,G circle
+    class V verify
+    class P5 closed
+    class P7,A4 pay
