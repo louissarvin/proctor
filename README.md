@@ -58,7 +58,7 @@ Any third party verifies the whole record offline, against Hedera's mirror node 
 
 - **Hedera Consensus Service** gives an ordered, tamper-evident log at a fixed sub-cent fee, independently re-derivable through the running hash chain. A contract write costs more, has no better timestamp, and gives up the chain property.
 - **x402** lets an agent pay for a resource mid-request, over HTTP, with no account and no prior relationship. The gate is a paywall the agent hits, not an integration it planned for.
-- **World ID Selfie Check** proves liveness in seconds on a phone the witness already owns, which is the only reason a human oversight step can be measured in seconds instead of minutes.
+- **World ID** proves liveness in seconds on a phone the witness already owns, which is the only reason a human oversight step can be measured in seconds instead of minutes. Selfie Check is the credential we designed for, and World granted the beta flag on 2026-09-09 for the duration of the event, so it is what runs. Exactly what has and has not been demonstrated end to end is [stated below](#what-is-real-vs-staged).
 - **Circle** makes a sub-dollar payment to a human economically possible at all.
 
 ---
