@@ -260,6 +260,9 @@ Note `.com` versus `.org`. Nothing on the docs site states these are different r
 sandbox page's *"request access through your World point of contact"* does not distinguish them.
 We initially assumed one request covered both.
 
+**Update 2026-09-09:** the `.org` address does not merely differ from the `.com` one — the
+domain is **unregistered** and mail to it bounces. See §3.7.
+
 ### 3.3 The Google Form predates the current distribution setup
 *2026-09-02*
 
