@@ -30,13 +30,24 @@ already wrote, and it binds every entry to a timestamp we did not choose.
 ## Verify it yourself, in one command
 
 ```bash
-bun verify/bin/verify.ts --topic 0.0.10359381
+bun verify/bin/verify.ts --topic 0.0.10390147
 ```
 
 ```
-PASS  4 messages, chain intact from genesis.
+PASS  15 messages, chain intact from genesis.
       No message was inserted, removed, reordered, or altered.
+
+PASS  completeness: issuance numbers dense across 1 issuer(s).
+      No decision was withheld from this log.
 ```
+
+**Two checks, two different claims.** The first proves nothing was altered, removed or
+reordered. The second proves nothing was *withheld*: an operator who simply never submits
+an inconvenient refusal breaks no hash at all, so integrity alone cannot catch them.
+
+If you run this while a decision is still open you may see a transient completeness
+failure. That is honest rather than broken: from outside the topic, an undecided decision
+and a suppressed one are both simply absent. **A hole that persists is the finding.**
 
 Zero dependencies, `node:crypto` only. It contacts the public mirror node and
 nothing of ours.
