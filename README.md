@@ -115,13 +115,19 @@ bun run demo refuse
 ### Verify our live evidence log, without installing anything
 
 ```bash
-bun verify/bin/verify.ts --topic 0.0.10359381
+bun verify/bin/verify.ts --topic 0.0.10390147
 ```
 
 ```
-PASS  4 messages, chain intact from genesis.
+PASS  25 messages, chain intact from genesis.
       No message was inserted, removed, reordered, or altered.
+
+PASS  completeness: issuance numbers dense across 1 issuer(s).
+      No decision was withheld from this log.
 ```
+
+**Two checks, two different claims.** The first proves nothing was altered. The second
+proves nothing was *withheld* — an operator who never submits a record breaks no hash.
 
 **Zero dependencies.** `node:crypto` only. It contacts Hedera's public mirror node and nothing of ours.
 
