@@ -385,6 +385,12 @@ would have made it obvious:
 | 4 | §2.2, documented per-action environments that do not exist | confusion |
 | 5 | §1.2 / §1.3, `environment` disagreement and non-validation | guesswork |
 | 6 | No documented turnaround for either access gate | unplannable on a 9-day event |
+| 7 | §1.4, the only non-deprecated low-friction preset is access-gated | **no clean path** for a new integration |
+| 8 | §1.5, `require_user_presence` not presented as the liveness control | shipped without liveness by default |
+| 9 | §3.5, the access form is stale but still live, and a dead request is indistinguishable from a queued one | **a week lost on a nine-day event** |
+| 10 | §3.6, `environment: sandbox` is required by one page and absent from the API reference | guesswork at the one step you cannot test without |
+| 11 | §2.3, no way to query whether a gated credential is enabled for your app | cannot separate "not enabled" from "my integration is wrong" |
+| 12 | §2.4, team-scoped enrolment stated only as a subordinate clause | a request that silently does not queue |
 
 **The one thing we would most want:** an "access" page that lists every gate, which channel opens
 it, and a rough turnaround. All three of our access problems were about *which door to knock on*,
