@@ -1,0 +1,94 @@
+TO:      developers@toolsforhumanity.com
+SUBJECT: Re: Selfie Check (Beta) flag - app_e179f4985c290220a5598b841fd5e3da - ETHOnline submission Sat 13th
+
+---
+
+Hi,
+
+Following up on a request sent 2 September. We're submitting to the World Selfie Check
+track at ETHOnline and the deadline is Saturday 13th, so I wanted to check this is in
+the right queue rather than assume.
+
+  app_id:  app_e179f4985c290220a5598b841fd5e3da
+  rp_id:   rp_4d44df4ba311add1
+  action:  proctor-witness-approval
+  contact: capinho77@gmail.com
+
+The ask is just the Selfie Check (Beta) feature flag on that app. Separately, the iOS
+Sandbox enrolment for the same address is still pending in the Portal panel.
+
+
+WHAT WE BUILT
+
+Proctor is a human-oversight gate for AI agents. An agent hits a policy threshold and is
+stopped by an HTTP 402. It pays to open a decision. A human who is NOT the operator of
+that agent approves or refuses within 60 seconds, and the default is refuse.
+
+The part that needs Selfie Check: the decision hash is passed as the World `signal`, so
+the liveness proof is bound to that one decision and cannot be replayed against another.
+Without that binding, any proof satisfies any decision and the product is a paid captcha.
+
+It is running end to end today on the compatible fallback preset:
+
+  - selfieCheckLegacy is already wired; the preset sits behind one variable
+  - we added require_user_presence to the fallback, so it still carries a liveness step
+    rather than proving possession of a phone
+  - the witness proof is verified server-side against your v4 verify endpoint, so a
+    synthetic proof cannot pass - we tried, and it correctly returned
+    "World rejected the proof"
+  - the witness nullifier is compared against the operator's, which is the evidence that
+    two distinct accounts were involved
+
+
+WHY SELFIE CHECK SPECIFICALLY
+
+We need a stable per-witness pseudonym AND a signal-bound proof at the same time.
+
+Per the 4.0 migration guide, v4 nullifiers are one-time-use, so our operator-independence
+comparison is only meaningful on a World ID 3.0 credential - on a v4 uniqueness proof two
+proofs from the same account differ and the check passes trivially. Selfie Check is the
+only path we found that gives both properties at once, and it needs no prerequisite
+credential, which matters because our witnesses are ordinary staff on a rota rather than
+crypto users.
+
+We treat it as an abuse-prevention and eligibility signal, not an identity signal, and we
+do not claim it proves one-person-one-account. Every record we write states explicitly
+whether the independence it carries is cryptographic or a policy property of the rota.
+
+
+FEEDBACK, WHICH IS ALSO THE TRACK DELIVERABLE
+
+We've kept a dated log throughout and have nineteen reproducible items. Four you may want
+regardless of the flag decision:
+
+  1. The docs contradict each other on nullifier stability. idkit/integrate says the same
+     person and action "always produces the same nullifier"; 4-0-migration says v4
+     nullifiers are one-time-use with session_id as the stable link. That contradiction
+     decides whether an integrator's independence check is real or silently false.
+
+  2. deviceLegacy is marked Deprecated with "for new integrations, use Selfie Check
+     (Beta)" - but Selfie Check is access-gated. A new integrator with no World contact
+     has no non-deprecated path.
+
+  3. The Sandbox Support address in your own docs is undeliverable. sandbox-access.md
+     says "Contact Sandbox Support at sandbox.access@toolsforhumanity.org" - that domain
+     is unregistered (whois: "Domain not found", no NS, no MX), so mail bounces. It is
+     the escalation path offered specifically to developers who were rejected or revoked,
+     i.e. the people who cannot self-serve. The company domain is .com. I tried to CC it
+     on this email, which is how I found it.
+
+  4. We requested Sandbox access on 2 Sept through the forms.gle form and heard nothing
+     for a week. The current documented path is the self-service panel in the Developer
+     Portal. The form still accepts submissions and returns a confirmation, so from the
+     requester's side a dead request and a queued one look identical.
+
+Happy to send the full log now if it's useful - it's written to your four headings.
+
+
+I appreciate these requests take time, and I'd rather ask once clearly than chase. If the
+flag isn't going to land before Saturday, just saying so is genuinely helpful: we'll ship
+on the compatible preset and describe the limitation accurately rather than overstating
+what we demonstrated.
+
+Thanks,
+<YOUR NAME>
