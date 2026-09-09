@@ -37,7 +37,9 @@ approved_by: user_44, 14:22:07
 
 That row is written by the system being audited. It is editable by the party being audited. And it contains **no evidence that a human, rather than the agent's own service account, produced it**.
 
-Since **2 August 2026**, the EU AI Act's obligations bind deployed high-risk systems. Article 12(3)(d) requires *"the identification of the natural persons involved in the verification of the results"*. Article 14(5) requires that an identification be *"separately verified and confirmed by at least **two natural persons**"*.
+Since **2 August 2026**, the EU AI Act's obligations bind deployed high-risk systems. Article 12(3)(d) requires *"the identification of the natural persons involved in the verification of the results"*, and Article 14(4) requires that such systems be *"effectively overseen by natural persons"* who can *"interrupt the system"*. Both bind every high-risk deployer.
+
+Article 14(5) goes further and requires *"at least **two natural persons**"* — but read its opening clause: *"For high-risk AI systems referred to in point 1(a) of Annex III"*, which is **remote biometric identification**. A supplier-payment agent is not that, so 14(5) does not bind this example deployer. We build to it anyway, because it is the strictest oversight bar the Act names and the evidence is identical either way. [The scope is set out in full here.](docs/regulatory-mapping.md)
 
 A self-written, self-editable log satisfies neither.
 
