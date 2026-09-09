@@ -202,8 +202,13 @@ GATE_ASSET=USDC   # one variable, when the faucet delivers
 
 | Role | Account | Type |
 |---|---|---|
-| Operator | [`0.0.10349667`](https://hashscan.io/testnet/account/0.0.10349667) | ECDSA secp256k1 |
+| Operator (writes attestations, pays witness fees) | [`0.0.10349667`](https://hashscan.io/testnet/account/0.0.10349667) | ECDSA secp256k1 |
 | Treasury (`payTo`) | [`0.0.10349677`](https://hashscan.io/testnet/account/0.0.10349677) | ECDSA secp256k1 |
+| Agent (pays the gate) | [`0.0.10359475`](https://hashscan.io/testnet/account/0.0.10359475) | ECDSA secp256k1 |
+| **Witness (receives the fee)** | [`0.0.10389138`](https://hashscan.io/testnet/account/0.0.10389138) | ECDSA secp256k1 |
+
+The witness account is deliberately distinct from the operator and the agent: an org
+paying itself would demonstrate nothing.
 
 Both carry `maxAutomaticTokenAssociations = -1`, so they accept HTS tokens
 including USDC `0.0.429274` without an explicit association step.
