@@ -279,6 +279,102 @@ for a code that does not exist. Worth one line in the iOS steps.
 
 ---
 
+### 3.5 The access instructions we followed were stale, and nothing said so
+*2026-09-09*
+
+We requested Sandbox access on 2026-09-02 through the `forms.gle` form titled "World ID
+Sandbox Beta Access Request" and by email, and heard nothing for seven days.
+
+The current documented process is neither of those. `/world-id/sandbox/sandbox-access`
+describes a **self-service panel in the Developer Portal** — *"select World ID Sandbox
+from the sidebar, choose the iOS tab, and submit the Apple Account email"* — with a
+separate Android flow in the same panel.
+
+The form still exists, still accepts submissions, and still returns a confirmation. From
+the requester's side, a request that goes nowhere and a request that is queued look
+identical. Retiring the form, or adding one line pointing at the Portal panel, would have
+saved a week on a nine-day event.
+
+Related: the enrolment being **tied to a team** is stated once, parenthetically. An account
+with no team selected has a sandbox panel that appears to work and produces nothing.
+
+### 3.6 `environment: sandbox` is correct in IDKit and undocumented at the verify endpoint
+*2026-09-09*
+
+`/world-id/sandbox/sandbox-access` says to set `environment: sandbox` in IDKit and send the
+proof to the **production** verify endpoint. Those two not moving together is the
+non-obvious part, and it is stated only once.
+
+Meanwhile the verify API reference (§1.2) lists `environment` as `production | staging`
+with `sandbox` absent, and the endpoint accepts any string without validating it (§1.3).
+So the value the sandbox guide tells you to send is the one the API reference says does not
+exist, and nothing rejects a typo either way.
+
+### 3.7 BLOCKER: the documented Sandbox Support address is at a domain that does not exist
+*2026-09-09*
+
+`/world-id/sandbox/sandbox-access` ends its iOS troubleshooting with the escalation path:
+
+> *"If your request was rejected or your access was revoked, submitting the same email
+> again won't create a new request. Contact Sandbox Support at
+> **sandbox.access@toolsforhumanity.org**."*
+
+**That domain is unregistered.** Not misconfigured, not missing an MX record — it does not
+resolve at all, and it is not in the registry:
+
+```console
+$ dig +short NS toolsforhumanity.org       # (also A, MX, SOA)
+                                            # ← empty
+$ whois toolsforhumanity.org
+Domain not found.
+
+$ dig +short MX toolsforhumanity.com
+1 smtp.google.com.                          # the real domain, live
+```
+
+The company domain is **`.com`**. The docs say `.org`. Mail to it bounces with
+`Address not found ... because the domain toolsforhumanity.org could not be found`.
+
+Three reasons this is worse than a typo:
+
+1. **It is the escalation path for the one state you cannot self-serve out of.** The
+   sentence is specifically for developers who were *rejected or revoked*, for whom the
+   docs have just explained that resubmitting does nothing. Their only documented action
+   is undeliverable, so a recoverable state becomes a dead end.
+2. **The bounce blames the sender.** Gmail's message asks the user to *check for typos or
+   extra spaces*. A developer who copied a `mailto:` link out of official docs will assume
+   they fumbled the paste and retype it, rather than report a docs bug. That is likely why
+   this has survived.
+3. **An unregistered domain is registrable by anyone.** Developers are being directed to
+   send app ids, RP ids and Apple Account emails there. Today it bounces; if someone
+   registers it, it does not. Worth a defensive registration regardless of the docs fix.
+
+Reproducing costs one command, which suggests no automated link-checking covers `mailto:`
+targets in the docs. The `https://` links on the same page all resolve.
+
+**Fix:** change `.org` to `.com` in `sandbox-access`, and grep the docs corpus for other
+`@toolsforhumanity.org` addresses.
+
+### 3.8 The 300s RP signature TTL is shorter than the flow it authorises
+*2026-09-09*
+
+`signRequest` defaults to `ttl: 300`. That is the window for the whole human journey:
+read the request, open the World App, scan a code, complete a selfie, return.
+
+Our first successful Selfie Check produced a valid proof that arrived **7m43s** after the
+signature was minted. World issued the proof and the app confirmed
+*"You've successfully connected your World ID"* — and it was unusable, because the nonce
+had expired three minutes earlier.
+
+Mostly our bug: mint on commit, not on page load, and the window is ample. But two things
+would have made it obvious:
+
+- The default is documented as a number, not as a **budget for a human being**. One
+  sentence — "this must cover the user's entire journey, including installing or opening
+  the app" — would have set the expectation.
+- Nothing in the returned proof indicates the signature it was issued against has expired.
+  The RP discovers it only when its own check fails.
+
 ## 4. What was confusing, missing, broken, or hard to test
 
 | # | Item | Impact |
