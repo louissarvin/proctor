@@ -59,7 +59,68 @@ curl -X POST https://developer.world.org/api/v4/verify/rp_4d44df4ba311add1 \
 produce the same next error. If the enum is real, rejecting an unknown value with
 `attribute: "environment"` would save an integrator a lot of guessing.
 
+### 1.4 The only non-deprecated path for a new integration is access-gated
+*2026-09-05*
+
+`idkit/credentials` marks `deviceLegacy` **Deprecated**, verbatim:
+
+> **Deprecated.** Keep `deviceLegacy` only for existing Device integrations. For new
+> integrations, use [Selfie Check (Beta)](#selfie-check-beta).
+
+Selfie Check is then gated on the same page:
+
+> [Request access](mailto:developers@toolsforhumanity.com) to enable Selfie Check (Beta)
+> for your app.
+
+So a new integrator who wants a low-friction credential and has no World point of contact
+is told to stop using the one preset available to them and adopt one they cannot enable.
+The remaining legacy presets do not fill the gap: `orbLegacy`, `documentLegacy` and
+`secureDocumentLegacy` all require the user to already hold a stronger credential, which
+is the exact friction `deviceLegacy` and Selfie Check exist to avoid.
+
+This is a docs problem rather than a product one, and it is cheap to fix: say on the
+credentials page what a new integration should build against *while* an access request is
+pending, and whether shipping on a deprecated preset is acceptable in the interim.
+
+**What we did.** Built against `selfieCheckLegacy` with the preset behind one variable,
+and run on `deviceLegacy` until the flag arrives. We added `require_user_presence` to the
+fallback so the request still carries a liveness step, because `device` alone proves
+possession of a phone rather than the presence of a person, and liveness is the property
+our product rests on. That mitigation was not obvious from the credentials page, which
+documents `require_user_presence` only in a parameters table two sections below the preset
+list, without noting that it is what makes a legacy preset carry presence at all.
+
+### 1.5 `require_user_presence` is documented as a parameter, not as the liveness control
+*2026-09-05*
+
+It appears once, in the "Common parameters" table:
+
+> `require_user_presence` — Optional liveness step. Defaults to `false`.
+
+Nothing on the page connects it to the question an integrator is actually asking, which is
+"which of these presets tells me a human was present, and how do I ask for that?". The
+answer is that most presets do not, and this flag is how you add it. `user_presence_completed`
+appears in the v3, v4 **and** session response shapes, so it works with legacy presets, but
+we only established that by reading the three response examples in `idkit/integrate` side by
+side. One sentence on the credentials page would have saved that.
+
 ---
+
+### 1.6 `deviceLegacy` is deprecated for new integrations, and nothing says so at runtime
+*2026-09-09*
+
+`/world-id/idkit/credentials` marks `deviceLegacy` **Deprecated**, with:
+
+> "Keep `deviceLegacy` only for existing Device integrations. For new integrations, use
+> Selfie Check (Beta)."
+
+We are a new integration, so the device credential is not obtainable. What is missing is
+any runtime signal saying so. The request does not return `credential_unavailable`; it
+returns `generic_error` with an empty payload (§2.5), which is indistinguishable from a
+network fault or a bad key.
+
+Combined with §1.4, the path for a new integrator is: the non-deprecated option is
+access-gated, the deprecated one silently cannot succeed, and the error names neither.
 
 ## 2. Developer Portal navigation, search, product discovery, and debugging guidance
 
