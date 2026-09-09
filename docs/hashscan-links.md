@@ -9,11 +9,11 @@ All artefacts are on **Hedera testnet**. The evidence topic was created 2026-09-
 
 | Artefact | Value |
 |---|---|
-| **Evidence topic** | [`0.0.10359381`](https://hashscan.io/testnet/topic/0.0.10359381) |
-| Memo | `Proctor oversight evidence log v1` |
+| **Evidence topic** | [`0.0.10390147`](https://hashscan.io/testnet/topic/0.0.10390147) |
+| Memo | `Proctor oversight evidence log` |
 | Admin key | **none** |
 | Submit key | ECDSA, operator-held |
-| Creation tx | `0.0.10349667@1788500920.243958466` |
+| Creation tx | `0.0.10349667@1788684617.529727573` |
 
 **No admin key.** Per Hedera's documentation, *"if no adminKey is specified the
 topic is immutable"*. The topic cannot be updated or deleted by anyone,
