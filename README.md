@@ -19,7 +19,7 @@ An AI agent hits a policy threshold and is stopped by an HTTP 402. It pays $0.42
 
 **The product is the evidence, not the approval.**
 
-Built for **ETHOnline 2026**. Tracks: **Hedera** (AI & Agentic Payments, Improve the Harness), **World** (Selfie Check), **Arc/Circle**.
+Built for **ETHOnline 2026**. Partners: **Hedera** (AI & Agentic Payments, Improve the Harness), **World** (Selfie Check), **Arc** (Best Agentic Economy with Circle Agent Stack).
 
 </div>
 
