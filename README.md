@@ -69,10 +69,19 @@ No wallet, no API keys, no feature flags. This runs the entire oversight loop:
 
 ```bash
 cd backend
+cp .env.example .env          # DATABASE_URL is the only value you must edit
 bun install
 bun run db:push
 bun run seed && bun run demo
+bun run doctor                # what is live, and what each gap costs you
+bun run acceptance            # exercise every claim against the running service
 ```
+
+**Unconfigured, this runs the full loop and produces a record that is deliberately
+NOT independently verifiable** — it is signed with a published demo key and never
+reaches a topic. `bun run demo` says so in its own closing line, and `bun run doctor`
+lists exactly what is missing. The difference between "it ran" and "it produced
+evidence" is the entire product, so the tooling refuses to blur it.
 
 ```
 1. agent proposes: EUR 41200.00 -> Meridian Logistics
