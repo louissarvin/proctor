@@ -42,14 +42,48 @@ service account produced it.
 
 ## Article 14, Human oversight
 
-> **14(5)** "no action or decision is taken by the deployer on the basis of the
-> identification resulting from the system unless that identification has been
-> **separately verified and confirmed by at least two natural persons** with the
-> necessary competence, training and authority"
+> **14(4)** high-risk AI systems shall be "effectively overseen by natural persons",
+> who are enabled to "correctly interpret the … output", to "decide … not to use
+> the high-risk AI system or to otherwise disregard, override or reverse the
+> output", and to "intervene … or interrupt the system"
 
-**Two persons.** Every attestation records both the operator nullifier and the
-witness nullifier, so their distinctness is checkable by a third party rather
-than asserted by us.
+This binds **every** deployer of a high-risk system. Proctor's gate is that
+interruption made explicit: the action does not proceed unless a person decides
+it should, and the default is that it does not.
+
+### 14(5), and its scope — read this before citing it
+
+> **14(5)** "**For high-risk AI systems referred to in point 1(a) of Annex III**,
+> the measures referred to in paragraph 3 of this Article shall be such as to
+> ensure that, in addition, no action or decision is taken by the deployer on the
+> basis of the identification resulting from the system unless that identification
+> has been **separately verified and confirmed by at least two natural persons**
+> with the necessary competence, training and authority"
+
+**That opening clause matters, and it is routinely dropped when this provision is
+quoted.** Annex III point 1(a) is *remote biometric identification* — systems that
+compare a person's biometric data against a database to establish who they are.
+
+**Proctor's worked example is not one of those.** An agent releasing a supplier
+payment is not a remote biometric identification system, so **Article 14(5) does
+not bind that deployer.** We say so plainly because a compliance claim that
+collapses under one lookup is worth less than no claim at all.
+
+So why build to it?
+
+- **It is the strictest oversight bar the Act names**, and it is the one provision
+  that specifies *how many people* and *how independent* they must be. Building to
+  the strictest named standard and saying where it is actually mandatory is a
+  defensible engineering position.
+- **It binds directly** for any deployer whose system does fall under Annex III
+  1(a) — and such a deployer needs exactly this evidence, produced by a party that
+  is not them.
+- **The evidence is the same either way.** Recording both nullifiers costs nothing
+  extra and is what makes independence checkable rather than asserted, whichever
+  provision a given deployer is answering.
+
+Every attestation records both the operator nullifier and the witness nullifier,
+so their distinctness is checkable by a third party rather than asserted by us.
 
 The `ind` field states which property the record actually carries:
 
