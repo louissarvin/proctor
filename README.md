@@ -151,6 +151,10 @@ Every row is a link to a file range or a public explorer. Nothing here asks you 
 | Second 61 is a hard refuse, arbitrated by Postgres | [`backend/src/lib/decision/lifecycle.ts:114`](backend/src/lib/decision/lifecycle.ts) |
 | Canonicalisation is RFC 8785, recursive at every depth | [`backend/src/lib/attestation/canonical.ts:37`](backend/src/lib/attestation/canonical.ts) |
 | Independence is **derived**, never asserted | [`backend/src/lib/attestation/build.ts:179`](backend/src/lib/attestation/build.ts) |
+| A decision withheld before submission is detected offline | [`verify/src/completeness.ts`](verify/src/completeness.ts) + `bun verify/bin/verify.ts --topic <id>` |
+| Issuance numbers cannot be burned by a failed create | [`backend/src/lib/decision/issue.ts`](backend/src/lib/decision/issue.ts) — counter and create share one transaction |
+| Test fixtures cannot reach the immutable evidence topic | `Org.attestable` defaults to **false**; orgs opt in |
+| Every 402 carries an EIP-712 offer we cannot later reprice | decode the `payment-required` header |
 | HCS-14 UAID matches a fixed test vector | [`backend/src/lib/attestation/uaid.ts:77`](backend/src/lib/attestation/uaid.ts) |
 | The export cites the Act provisions it speaks to | [`backend/src/lib/evidence/export.ts:110`](backend/src/lib/evidence/export.ts) |
 
