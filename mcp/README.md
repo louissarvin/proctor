@@ -44,46 +44,35 @@ refused / expired → NOT approved (EXPIRE). Do not proceed.
 **Most calls never reach a human.** An oversight tool that interrupts everything is one the
 agent's owner switches off, so policy runs first and the common path is free.
 
-## Publishing status
-
-**Not published yet.** The package is built, node-tested and manifest-valid, but the three
-remaining steps all need accounts only you can log into.
-
-```bash
-# 1. npm (needs `npm adduser` first)
-cd mcp && npm run build && npm publish --access public
-
-# 2. mcp-publisher
-brew install mcp-publisher          # or the release tarball
-mcp-publisher login github          # device code, needs the GitHub account
-mcp-publisher publish               # reads server.json
-
-# 3. verify
-curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.louissarvin/proctor"
-```
-
-The registry hosts **metadata only**, so npm must come first. Names are already aligned:
-`mcpName` in `package.json` equals `name` in `server.json` equals
-`io.github.louissarvin/proctor`, which the registry requires and which GitHub auth requires
-to match your username.
-
-**One real blocker beyond accounts:** `repository.url` points at
-`github.com/louissarvin/proctor`, and that repo is not pushed. Publish after the push, not
-before.
-
 ## Install
+
+Published on npm as [`proctor-mcp`](https://www.npmjs.com/package/proctor-mcp) and listed
+in the [MCP Registry](https://registry.modelcontextprotocol.io) as
+`io.github.louissarvin/proctor`.
 
 ```jsonc
 // Claude Desktop: claude_desktop_config.json
 {
   "mcpServers": {
     "proctor": {
-      "command": "bun",
-      "args": ["/absolute/path/to/proctor/mcp/src/index.ts"],
+      "command": "npx",
+      "args": ["-y", "proctor-mcp"],
       "env": { "PROCTOR_API": "http://localhost:3700" }
     }
   }
 }
+```
+
+Nothing to clone and nothing to build. Point `PROCTOR_API` at a Proctor instance; the
+default is `http://localhost:3700`.
+
+Verify it without a client:
+
+```bash
+printf '%s\n%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  | npx -y proctor-mcp
 ```
 
 Works with any MCP client — Claude Desktop, Cursor, or your own. Transport is JSON-RPC 2.0

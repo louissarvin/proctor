@@ -272,7 +272,7 @@ Four surfaces, one per role. None of them need a terminal.
 | **Witness** | `/w/<token>` | Approve or refuse on a phone, in under a minute |
 | **Auditor** | `/console` | Read the evidence, re-verify it against Hedera without trusting us |
 | **Agent developer** | `POST /v1/gate/decisions` | Integrate the gate. It is an HTTP 402, not an SDK |
-| **MCP agent** | [`mcp/`](mcp) | One tool, `request_human_approval`. Claude Desktop, Cursor, anything MCP |
+| **MCP agent** | [`proctor-mcp`](https://www.npmjs.com/package/proctor-mcp) on npm | `npx -y proctor-mcp`. One tool, `request_human_approval`. Claude Desktop, Cursor, anything MCP |
 
 Full walkthrough: **[`docs/USING_PROCTOR.md`](docs/USING_PROCTOR.md)**. Where this goes next, and what we deliberately will not build: **[`docs/ROADMAP.md`](docs/ROADMAP.md)**.
 

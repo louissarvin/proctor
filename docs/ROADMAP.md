@@ -35,12 +35,18 @@ a real x402 payment through Blocky402 — verified on chain: agent `-420000`, tr
 `+415800`, `+4200` to the HTS custom fee collector, fee payer `0.0.7162784`. Policy is
 evaluated first, for free, so most calls never pay.
 
-**Publish-ready, not published.** Built to plain JS, verified running under **node** (not
-just bun), `mcpName` aligned with `server.json` as `io.github.louissarvin/proctor`, and
-`npm pack --dry-run` ships 4 files. The remaining steps need accounts: `npm adduser`,
-`npm publish --access public`, then `mcp-publisher login github && mcp-publisher publish`.
-The registry stores metadata only, so npm goes first — and `repository.url` points at a
-repo that is not pushed yet, so the push has to come before either.
+**Published 2026-09-10.** On npm as [`proctor-mcp`](https://www.npmjs.com/package/proctor-mcp)
+and in the MCP Registry as `io.github.louissarvin/proctor`. Adoption is now one config
+block — `npx -y proctor-mcp` — with nothing to clone and nothing to build.
+
+Three things worth recording, because each cost time:
+
+- **npm scope must be one you own.** The account was `bapet`, so `@louissarvin/...` was a
+  403. Unscoped `proctor-mcp` is also more discoverable. `mcpName` is independent of the
+  npm name: it binds to the GitHub namespace the registry authenticates against.
+- **A passkey is not a TOTP code.** npm needs a TTY to open the browser challenge, and
+  redacts the auth URL to `***` without one. `script -q` surfaces it.
+- **The registry caps `description` at 100 characters.** Ours was 240 and failed with 422.
 
 **Remaining:** Hedera rail only. The gate advertises Arc through Circle's Gateway as well,
 and `agent/` demonstrates it; the MCP client registers the Hedera scheme.
@@ -141,9 +147,8 @@ After that, in order:
 | 1 | Deploy | Unblocks the marketplace listing, a real agent-card URL, and one-config MCP adoption |
 | 2 | Arc rail in the MCP client | The gate advertises two rails; the MCP tool pays on one |
 | 3 | Circle Agent Marketplace listing | A durable artefact; every other prerequisite is already met |
-| 4 | Publish to npm + the MCP Registry | Everything is ready; only `npm adduser` and `mcp-publisher login` remain |
-| 5 | `@proctor/*` middleware | Removes the first-hour tax without changing the protocol |
-| 6 | Policy as configuration | The evidence format is already ready; only authoring is missing |
+| 4 | `@proctor/*` middleware | Removes the first-hour tax without changing the protocol |
+| 5 | Policy as configuration | The evidence format is already ready; only authoring is missing |
 
 ---
 

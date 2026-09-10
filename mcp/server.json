@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.louissarvin/proctor",
-  "description": "Human oversight for AI agents. Blocks a tool call on a verified human who is not the operator, fails closed on a deadline, and returns a tamper-evident citation on a public ledger. The human-in-the-loop the MCP spec asks for and does not define.",
+  "description": "Human oversight for AI agents: block a tool call on a verified human, with on-chain proof.",
   "repository": {
     "url": "https://github.com/louissarvin/proctor",
     "source": "github",
@@ -11,9 +11,11 @@
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@louissarvin/proctor-mcp",
+      "identifier": "proctor-mcp",
       "version": "1.0.0",
-      "transport": { "type": "stdio" },
+      "transport": {
+        "type": "stdio"
+      },
       "environmentVariables": [
         {
           "name": "PROCTOR_API",

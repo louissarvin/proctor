@@ -9,7 +9,7 @@ needs a terminal.
 | **Witness** | `/w/<token>` | Approve or refuse, on a phone, in under a minute |
 | **Auditor** | `/console` | Read the evidence, re-verify any record against Hedera |
 | **Agent developer** | `POST /v1/gate/decisions` | Integrate the gate, pay through x402 |
-| **MCP agent** | [`mcp/`](../mcp) | One tool, `request_human_approval`. Works in Claude Desktop, Cursor, anything MCP |
+| **MCP agent** | `npx -y proctor-mcp` | One tool, `request_human_approval`. Works in Claude Desktop, Cursor, anything MCP |
 
 ---
 
@@ -143,12 +143,14 @@ ability to deny a tool invocation, and then defines no mechanism for one. Client
 build a local confirmation dialog, and nothing survives the click: no proof a person was
 there, no proof they were independent of the operator, nothing an auditor can check.
 
-[`mcp/`](../mcp) is that mechanism, as a zero-dependency stdio server exposing one tool:
+[`proctor-mcp`](https://www.npmjs.com/package/proctor-mcp) is that mechanism, published on
+npm and listed in the MCP Registry as `io.github.louissarvin/proctor`. One tool, one config
+block, nothing to clone:
 
 ```jsonc
 { "mcpServers": { "proctor": {
-    "command": "bun",
-    "args": ["/absolute/path/to/proctor/mcp/src/index.ts"],
+    "command": "npx",
+    "args": ["-y", "proctor-mcp"],
     "env": { "PROCTOR_API": "http://localhost:3700" } } } }
 ```
 
