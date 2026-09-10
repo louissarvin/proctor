@@ -165,11 +165,11 @@ Every row is a link to a file range or a public explorer. Nothing here asks you 
 ### The evidence log is on Hedera testnet
 
 ```
-Topic:        0.0.10359381
-Memo:         Proctor oversight evidence log v1
+Topic:        0.0.10390147
+Memo:         Proctor oversight evidence log
 Admin key:    NONE  (immutable and undeletable, by anyone, including us)
 Submit key:   ECDSA, operator-held
-Creation tx:  0.0.10349667@1788500920.243958466
+Creation tx:  0.0.10349667@1788684617.529727573
 ```
 
 Per Hedera's documentation: *"if no adminKey is specified the topic is immutable."*
