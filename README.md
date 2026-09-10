@@ -802,27 +802,33 @@ integrity and completeness.
 | [`backend/`](backend/) | Fastify 5 on Bun. The gate, the policy engine, the witness flow, the attestation builder, the evidence API |
 | [`verify/`](verify/) | **Zero-dependency** offline verifier. `node:crypto` only, because the claim is only as strong as this dependency list |
 | [`agent/`](agent/) | The paying agent. Stops on a 402, pays, proceeds |
-| [`web/`](web/) | Console and witness PWA (in progress) |
-| [`docs/`](docs/) | Build plan, regulatory mapping, agent discovery, verifiable artefacts |
+| [`web/`](web/) | Console and witness PWA |
+| [`docs/`](docs/) | Architecture diagram, regulatory mapping, agent discovery, Circle marketplace, verifiable artefacts |
+| [`harness/`](harness/) | Contribution to the **Hedera Harness**: an HCS topic validator for the CHAIN stage, with running-hash verification and a `expectDenseSequence` assertion nothing upstream has. 17 tests |
+| [**`docs/ai/`**](docs/ai/) | **How this was built with AI**, and every defect the AI-assisted work introduced, how each was caught, and what changed so it could not recur |
+| [`00_*.md` … `25_*.md`](00_START_HERE.md) | The 26 research documents, written before any code. Superseded ones are kept: the reasoning that killed five candidate products is the most reusable thing in the set |
 
 ---
 
 ## What each test file proves
 
-**128 tests, 717 assertions**, across backend and verifier.
+**227 tests** across three suites: 185 backend (866 assertions), 25 verifier, 17 harness.
 
 - **Evidence integrity**: `verify/test/runningHash.test.ts` — chain reproduction from genesis, one flipped bit, removed message, reorder, forged insert, backdated timestamp, **and that the naive implementation is wrong**
 - **Canonicalisation**: `canonical.test.ts` — RFC 8785 conformance, nested-object sorting at every depth, arrays-are-data, **and a direct test of the broken naive canonicaliser**
 - **World verification**: `worldVerify.test.ts` — all seven assertions, a proof for another decision rejected, a missing `signal_hash` rejected rather than read as a pass, hex-casing operator match
 - **Fail-closed lifecycle**: `lifecycle.test.ts` — approve vs sweep raced 50 times in **both** directions: sweeper always wins when overdue, approver always wins when valid, invariant holds at the knife edge
 - **Attestation**: `attestation.test.ts` — EIP-712 verifies, tamper invalidates, size assertion fires, refusal semantics, independence derived not asserted
-- **The gate**: `x402Gate.test.ts` — Blocky402 advertises Hedera, unsupported network dropped rather than fatal, refuses to boot when nothing is payable
+- **The gate**: `x402Gate.test.ts` — Blocky402 advertises Hedera, **two rails resolve through two different facilitators**, an unsupported network is dropped rather than fatal, refuses to boot when nothing is payable
 - **Witness flow**: `witnessFlow.test.ts` — end-to-end against the real database, operator cannot approve, cross-decision proof rejected
-- **Standards**: `uaid.test.ts` (HCS-14, numeric skill sort, fixed vector), `a2a.test.ts` (exactly one interrupted state), `sse.test.ts` (WHATWG wire format, integer meter arithmetic)
+- **Payout**: `payout.test.ts` — the fee is metered rather than flat, **a refusal is paid too**, three concurrent calls still produce exactly one payment, and a witness with no payout account is recorded as owed rather than silently dropped
+- **Evidence completeness**: `completeness.test.ts` — a decision suppressed *before* submission is caught although no hash breaks, issuers are checked separately so interleaving is not a false gap, the visible range is `min..max` so pre-migration records are not reported as withheld, **and the residual weakness is asserted so it can never be quietly claimed away**
+- **Signed offers**: `offerReceipt.test.ts` — an offer is signed by the same key as the attestation, repricing and payee-redirection both fail attribution, and recovery *succeeding* on forged data is distinguished from recovery returning the *right* address
+- **Standards**: `uaid.test.ts` (HCS-14, numeric skill sort, fixed vector), `a2a.test.ts` (exactly one interrupted state), `sse.test.ts` (WHATWG wire format, integer meter arithmetic, **and that the terminal frame is a NAMED event** — a dropped name fails silently and the wait never ends)
 
 ```bash
-cd backend && bun test     # 120 pass
-cd verify  && bun test     #   8 pass
+cd backend && bun test     # 185 pass
+cd verify  && bun test     #  25 pass
 ```
 
 ---
