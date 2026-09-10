@@ -58,7 +58,7 @@ export const gateRoutes: FastifyPluginCallback = (app: FastifyInstance, _opts, d
               kind: { type: 'string', enum: ['transfer', 'contract_call', 'data_export', 'custom'] },
               asset: { type: 'string', examples: ['EUR'] },
               amount: { type: 'string', description: 'Decimal string. Never a float.', examples: ['41200.00'] },
-              counterparty: { type: 'string', examples: ['Meridian Logistics'] },
+              counterparty: { type: 'string', examples: ['Hedera Testnet Treasury'] },
             },
           },
         },
