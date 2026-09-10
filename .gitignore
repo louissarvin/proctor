@@ -17,3 +17,7 @@ generated/
 CLAUDE.md
 **/CLAUDE.md
 .playwright-mcp/
+
+# Research log: 26 working documents written before any code. Kept on disk,
+# not published: they are notes, not product documentation.
+[0-2][0-9]_*.md

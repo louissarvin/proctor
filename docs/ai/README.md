@@ -13,7 +13,7 @@ was caught, and what changed so it could not recur.**
 
 | Where | What |
 |---|---|
-| [`../../00_START_HERE.md`](../../00_START_HERE.md) → [`25_DAY1_CHECKLIST.md`](../../25_DAY1_CHECKLIST.md) | 26 research documents, written before any code |
+| Research log, kept out of the repo | 26 documents, written before any code. Working notes rather than product documentation, so they are not published |
 | [`../build/`](../build) | 10 build PRDs, one per subsystem, written before each was implemented |
 | [`../../WORLD_ACCESS.md`](../../WORLD_ACCESS.md), [`../../HEDERA_SETUP.md`](../../HEDERA_SETUP.md) | Operational runbooks for the two gated integrations |
 | [`../../WORLD_FEEDBACK.md`](../../WORLD_FEEDBACK.md) | Sponsor feedback, written as each item was hit rather than reconstructed |
@@ -29,7 +29,7 @@ most reusable thing in the set.
 
 **Research first, and specifically research that tries to kill the idea.** Five candidate
 products were discarded before Proctor survived. The filter, from
-[`09_RED_TEAM.md`](../../09_RED_TEAM.md), is four questions:
+the red-team pass in that research log, is four questions:
 
 1. Who is *compelled* to pay — statute, contract, margin call?
 2. What existing invoice shrinks?
