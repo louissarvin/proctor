@@ -953,11 +953,11 @@ bun run demo                  # the whole loop, no wallet needed
 bun dev                       # http://localhost:3700
 
 # 2. Verify our live evidence log, from anywhere
-bun verify/bin/verify.ts --topic 0.0.10359381
+bun verify/bin/verify.ts --topic 0.0.10390147
 
 # 3. Tests
-cd backend && bun test        # 120 pass
-cd verify  && bun test        #   8 pass
+cd backend && bun test        # 185 pass
+cd verify  && bun test        #  25 pass
 ```
 
 Optional, for the live chain paths: `HEDERA_OPERATOR_ID`, `HEDERA_OPERATOR_KEY`, `WORLD_RP_SIGNING_KEY`. Each leg warns and disables itself when its key is absent, rather than crashing.
