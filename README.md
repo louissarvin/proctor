@@ -443,6 +443,195 @@ framed (ours)    : c91842fa5e802cc4ac04cf8dd3a5f6b2  <- MATCH
 
 The test suite asserts **both** directions: that the framed version reproduces consensus, and that the naive one does not. Nothing in the Hedera tooling ecosystem currently ships this.
 
+#### The agent checks the price is signed before paying it
+
+`wrapFetchWithPayment` answers a 402 automatically, which is convenient and also means
+an agent will pay whatever it is told to pay. A seller could quote one price in its docs
+and another to a machine, and nothing in the base protocol leaves the buyer an artefact
+to complain with.
+
+So the agent fetches the 402 **unpaid**, verifies the seller signed those exact terms,
+and checks the recovered signer against the attestor address published at
+`/.well-known/proctor.json`. Only then does it hand over money.
+
+```
+offer verified: 100000000 0.0.0 on hedera:testnet
+  signed by 0xB73837E8C34E2897debeAca0898Da23B52a6Eb10, valid until 2026-09-06T09:02:56.000Z
+offer verified: 420000 0x3600…0000 on eip155:5042002
+  signed by 0xB73837E8C34E2897debeAca0898Da23B52a6Eb10, valid until 2026-09-13T09:01:36.000Z
+```
+
+Both rails, one signer, two validity windows — Gateway requires at least seven days,
+Hedera does not. **Recovering an address always succeeds; recovering the *right* one is
+the check**, and treating "did not throw" as "signature valid" is how this gets built
+wrong. If the signer is not the published attestor the agent refuses to pay and says why.
+
+A seller that has not adopted the extension is not refused: the agent says
+`paying on an unsigned quote` out loud rather than pretending the check happened.
+
+#### Both rails, settling
+
+The agent pays on either rail, selected with `PREFER_NETWORK`:
+
+```
+=== ARC ===                              === HEDERA ===
+payer      0x361c196a…3aef               payer      0.0.10359475
+network    eip155:5042002                network    hedera:testnet
+tx         f039ac8b-1a82-4b55-…          tx         0.0.7162784@1788752592.622448186
+status     committed to a Circle         status     on chain, final
+           Gateway batch
+```
+
+Gateway balance moved `2.000000 → 1.580000` USDC: exactly the $0.42 gate price.
+
+**The two rails settle differently and the agent says so.** Hedera returns a consensus
+transaction id that is final the moment it resolves. Gateway returns a **batch id** — the
+payment is committed and the balance has moved, but it reaches the chain later, batched
+with others. The agent originally printed a HashScan link for the Gateway batch id, which
+produces a URL that can never resolve, and called it *"settled"*. Both are now
+rail-aware, because "paid" and "on chain, final" are different claims.
+
+Three things had to be true before the Arc leg would settle, and each failed in a way that
+named something else:
+
+| Missing | How it presented |
+|---|---|
+| `GatewayEvmScheme` registered client-side | the agent silently paid on Hedera instead |
+| The Arc asset in the agent's `allowedAssets` | *"the gate advertised only hedera:testnet"* — which is not what the gate said |
+| A payee **different from the payer** | a bare `402` with an empty body |
+
+The first two are spend controls doing their job. The third is worth stating plainly: with
+`PAY_TO_ARC` set to the agent's own address the agent pays itself, and Gateway rejects the
+authorization with nothing that hints at why.
+
+#### Funding the Arc rail, and the distinction that costs an afternoon
+
+**Holding USDC in the wallet is not enough.** Gateway nanopayments spend from a *Gateway
+balance* — a separate deposit held by the `GatewayWallet` contract. A wallet with plenty of
+USDC and no Gateway balance fails to settle with an error that reads like a signing problem.
+
+Two on-chain steps against Arc's own RPC, neither of which touches `circle.com`:
+
+```
+1. USDC.approve(gatewayWallet, amount)      0x3600…0000
+2. gatewayWallet.deposit(usdc, amount)      0x0077777d…
+```
+
+Funded and confirmed: wallet `19.995554 → 17.992384` USDC, **Gateway balance `2.000000`**.
+
+Two things worth knowing if you follow this path:
+
+- **The balances API returns a decimal string** (`"2.000000"`), not atomic units. `BigInt()`
+  on it throws — but an empty balance is `"0"`, which parses fine, so the bug only appears
+  once money actually arrives.
+- **Only the balance *check* needs `circle.com`.** The deposit is pure on-chain work. Since
+  that host is intermittently TLS-intercepted here, an unreachable balance is reported as
+  `UNREACHABLE` rather than `0`: *"you have no money"* and *"we could not ask"* are very
+  different answers to act on, and conflating them would have blocked a deposit that was
+  perfectly able to proceed.
+
+#### The on-call retainer, and why it is a Scheduled Transaction
+
+Paying a witness only when a decision arrives prices **availability** at zero. Someone who
+keeps a phone on all day and receives nothing earns nothing, so a rota decays until nobody
+is reachable — and an oversight gate whose witnesses have drifted away fails closed on
+every decision, which is safe and useless. Real on-call pays standby.
+
+It is a scheduled transaction rather than a cron job for the same reason the evidence log
+is on HCS: **a cron job pays when our server chooses to; a scheduled transaction fires
+whether or not we are alive, honest, or still solvent.** The witness can check their next
+payment exists before agreeing to be on call.
+
+Verified end to end on testnet, [schedule `0.0.10394981`](https://hashscan.io/testnet/schedule/0.0.10394981):
+
+```
+wait_for_expiry : true
+expiration      : 1788714592.890000000
+executed        : 1788714592.262342758   ← Hedera fired it, not us
+
+witness balance : 112011420 → 112511420 tinybar   (+500000, exactly the retainer)
+```
+
+**Recurrence, stated honestly.** Hedera schedules are one-shot. Recurrence here means the
+next retainer is committed when the previous one executes, so exactly one future payment is
+on chain at any moment. That is weaker than a native recurring primitive, and it is
+described that way rather than dressed up.
+
+**An admin key is retained**, so a witness who leaves the rota can be removed. Without one
+the schedule could never be cancelled.
+
+**A scheduled payment fires without telling us**, so `reconcileRetainers()` reads the mirror
+node and records what actually executed, using the network's timestamp rather than our
+intent. Skipping that is how a database ends up saying `VERIFIED` forever while the money
+has already moved — the same drift that once had our demo printing one thing and the
+evidence log recording another.
+
+#### Settling in HTS, with a custom fee schedule
+
+Hedera's extra-points list asks for *"HTS tokens or custom fee schedules in the settlement
+path."* We had neither in practice: USDC **is** an HTS token, but the faucet never
+delivered, so every settlement moved HBAR and the claim rested on an asset with no balance.
+
+The gate already quoted an arbitrary token id correctly — verified against a live 402 — so
+supply was the only thing missing. So we minted one:
+
+| | |
+|---|---|
+| Token | [`0.0.10394781`](https://hashscan.io/testnet/token/0.0.10394781) — Proctor Gate Credit (PGC), 6 decimals |
+| Custom fee | 1/100 fractional to the treasury, `allCollectorsAreExempt` |
+| `feeScheduleKey` | retained, so it is a fee **schedule** rather than a fee decision |
+
+A real settlement, [`0.0.7162784@1788713352.579834930`](https://hashscan.io/testnet/transaction/0.0.7162784-1788713352-579834930):
+
+```
+0.0.10359475   -420000   the agent pays
+0.0.10349677   +415800   the treasury receives
+0.0.10349667     +4200   custom fractional fee, collected
+```
+
+```json
+"assessed_custom_fees": [
+  { "amount": 4200, "collector_account_id": "0.0.10349667", "token_id": "0.0.10394781" }
+]
+```
+
+Both halves of the bullet, on chain, settled through Blocky402. Six decimals deliberately,
+so the same `$0.42 → 420000` arithmetic holds and swapping back to USDC really is one
+variable.
+
+**The agent refused the first attempt, correctly.** Its own spend controls allow only
+assets its operator has approved, so a freshly minted token was rejected until it was added
+explicitly. That is the right default for software that spends money unattended, and it is
+worth more than the settlement it briefly blocked.
+
+#### Paying the witness, and why it is HBAR
+
+| | |
+|---|---|
+| Asset | **HBAR**, not USDC |
+| Amount | metered from real review milliseconds, floored |
+| Trigger | every resolved decision, approve **and** refuse |
+| Idempotency | `@@unique([decisionId, leg])` — three concurrent calls produce one payment |
+
+**HBAR rather than USDC is a deliberate accessibility decision, not a shortcut.** A recipient
+that has never held a given HTS token cannot receive it: the transfer fails on *association*,
+not on balance. A witness is a person on a rota, not a crypto user, so requiring them to
+associate a token before they can be paid for thirty seconds of attention puts a wallet
+onboarding flow in front of a brake pedal. HBAR needs no association and auto-creates a hollow
+account on first receipt.
+
+**A refusal is paid identically to an approval.** Paying only for approvals would price the
+witness to say yes, which is the exact incentive this product exists to remove. A test asserts
+it.
+
+**A witness with no payout account is recorded as owed, never silently skipped.** The fee was
+earned; dropping it because onboarding is incomplete would let an org quietly consume human
+attention for free.
+
+The payout runs **off the critical path**, like the attestation. The agent is released on the
+decision outcome, so a slow or failed transfer can never delay the release or change what the
+evidence says happened.
+
 #### Trade-offs we accepted for Hedera
 
 - **HCS instead of a contract for attestations.** Rejected on-chain per-decision records because HCS is $0.0008 per message with a network-assigned timestamp and a running hash chain; a contract write costs more, has no better timestamp, and **gives up the chain property**. Trade-off: no on-chain queryability of individual records. We accept that because the export plus the mirror node covers it.
