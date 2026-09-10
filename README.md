@@ -861,8 +861,8 @@ Honest checklist. Everything marked Verified is checkable from this repo today.
 
 | Item | Status | Evidence |
 |---|:---:|---|
-| HCS evidence topic, no admin key | **Verified** | [Topic `0.0.10359381`](https://hashscan.io/testnet/topic/0.0.10359381) |
-| Running hash chain verifies offline from genesis | **Verified** | `bun verify/bin/verify.ts --topic 0.0.10359381` → PASS |
+| HCS evidence topic, no admin key | **Verified** | [Topic `0.0.10390147`](https://hashscan.io/testnet/topic/0.0.10390147) |
+| Running hash chain verifies offline from genesis | **Verified** | `bun verify/bin/verify.ts --topic 0.0.10390147` → PASS |
 | Verifier has zero dependencies | **Verified** | [`verify/package.json`](verify/package.json) |
 | Tamper detection, five vectors | **Verified** | [`docs/hashscan-links.md`](docs/hashscan-links.md) |
 | Live 402 settling through Blocky402 | **Verified** | `extra.feePayer: 0.0.7162784` on the wire |
