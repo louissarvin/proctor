@@ -968,11 +968,30 @@ Optional, for the live chain paths: `HEDERA_OPERATOR_ID`, `HEDERA_OPERATOR_KEY`,
 
 | Field | Value |
 |---|---|
+| **Showcase text** | [`SUBMISSION.md`](SUBMISSION.md) — the written half of what Round 1 judges see |
 | Event | ETHOnline 2026 |
-| Tracks | Hedera AI & Agentic Payments · Hedera Improve the Harness · World Selfie Check · Best Agentic Economy with Circle Agent Stack · Launch on Arc Testnet & Push to Mainnet |
-| Evidence topic | [`0.0.10359381`](https://hashscan.io/testnet/topic/0.0.10359381) |
+| Partners (3 of 3) | **Hedera** · **World** · **Arc** |
+| Tracks | Hedera AI & Agentic Payments · Hedera Improve the Harness · World Selfie Check · Arc Best Agentic Economy with Circle Agent Stack |
+| Evidence topic | [`0.0.10390147`](https://hashscan.io/testnet/topic/0.0.10390147) |
 | Feedback deliverable | [`WORLD_FEEDBACK.md`](WORLD_FEEDBACK.md) |
 | Regulatory mapping | [`docs/regulatory-mapping.md`](docs/regulatory-mapping.md) |
+
+---
+
+## How this was built with AI
+
+Required by the event rules, and worth reading for a reason the rules do not mention.
+
+Every planning artefact is in the repo. [`docs/ai/`](docs/ai/) explains how the work was
+directed, and then spends most of its length on **the defects the AI-assisted work
+introduced** — a `wid` field that was null on every record ever written, a demo whose
+console contradicted its own evidence log, an Article 12 export that failed its own
+verifier, and an invariant this repo documented and then violated one session later.
+
+Every one of them passed review, passed the type-checker, and passed a green test suite.
+All were found by running the system and checking its output against what this README
+claimed about it. That is also why [`bun run acceptance`](backend/scripts/acceptance.ts)
+exists: a claim that cannot be executed is a claim nobody will check.
 
 ---
 
