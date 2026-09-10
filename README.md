@@ -870,14 +870,20 @@ Honest checklist. Everything marked Verified is checkable from this repo today.
 | Fail-closed TTL, race-tested both directions | **Verified** | `lifecycle.test.ts`, 50 rounds |
 | World RP signing against the real key | **Verified** | `worldVerify.test.ts`, 65-byte EIP-191 sig |
 | Seven verification assertions | **Verified** | `worldVerify.test.ts` |
-| Attestations for approve, refuse, expire | **Verified** | seq 1–4 on the live topic |
+| Attestations for approve, refuse, expire | **Verified** | 25 records on the live topic: 7 APPROVE, 5 REFUSE, 13 EXPIRE |
 | HCS-14 UAID, fixed vector | **Verified** | `uaid.test.ts` snapshot |
 | A2A agent card + TaskState mapping | **Verified** | `GET /.well-known/agent-card.json` |
 | SSE meter and countdown | **Verified** | live frames at 4Hz, `sse.test.ts` |
-| **One real paid request end to end** | **Blocked** | Agent built and signing; Circle's Hedera faucet has not delivered testnet USDC. Fails at `invalid_exact_hedera_payload_preflight_failed`, which is precisely "payer holds no USDC" |
-| **Selfie Check credential** | **Blocked** | Access requested 2026-09-02; running on `WORLD_MODE=DEVICE` until the flag lands. The swap is one variable |
-| Witness PWA | **In progress** | Backend routes complete and tested; `web/` frontend pending |
-| Arc / Circle settlement | **Not shipped** | Meter runs; payout path designed, not settled |
+| Evidence completeness, checked offline | **Verified** | `completeness.test.ts` in both backend and verifier; `GET /v1/evidence/gaps` |
+| x402 signed offers on every 402 | **Verified** | `offer-receipt` extension, EIP-712, same key as the attestor. Decode the `payment-required` header |
+| x402 payment-identifier (idempotency) | **Verified** | declared optional on both paid routes |
+| **One real paid request end to end** | **Verified** | [`0.0.7162784@1788535476.476844044`](https://hashscan.io/testnet/transaction/0.0.7162784-1788535476-476844044) — CRYPTOTRANSFER, SUCCESS, settled by Blocky402's fee payer `0.0.7162784`. Settles in **HBAR**: Circle's faucet never delivered testnet USDC, and the asset is one variable |
+| **Selfie Check credential** | **Granted 2026-09-09** | Requested 2026-09-02, granted seven days later "for the duration of the hackathon". Now runs `WORLD_MODE=SELFIE` with `require_user_presence`. World issued a real Selfie Check proof to this app and confirmed the connection on-device. See [`WORLD_FEEDBACK.md`](WORLD_FEEDBACK.md) §2.5 for the bundler defect that made every credential fail identically until it was found |
+| Witness PWA | **Verified** | `web/src/routes/w.$token.tsx`, IDKit 4.x, decision hash as `signal` |
+| **Arc rail advertised on every 402** | **Verified** | `exact` on `eip155:5042002`, USDC `0x3600…0000`, `GatewayWalletBatched`, via Circle's Gateway facilitator. Decode the `payment-required` header |
+| **The witness is actually paid** | **Verified** | Real HBAR transfer per resolved decision. [`0.0.10349667@1788678540.559498045`](https://hashscan.io/testnet/transaction/0-0-10349667-1788678540-559498045) — CRYPTOTRANSFER, SUCCESS, memo names the decision |
+| Arc **Gateway balance funded** | **Verified** | 2 USDC deposited into Circle's GatewayWallet on Arc. `bun run arc:deposit` |
+| **Arc payment, buyer to seller** | **Verified** | Gateway balance `2.000000 → 1.580000` USDC. Exactly $0.42 moved on the Arc rail, batch `f039ac8b…` |
 | Mainnet | **Not shipped** | Hedera testnet only |
 
 ---
