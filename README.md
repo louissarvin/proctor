@@ -912,7 +912,7 @@ What Proctor adds:
 1. The approver is a **cryptographically distinct account** from the operator
 2. The approval is a **liveness proof** bound to the decision hash, not a static credential
 3. The output is an **externally ordered evidence record**, not a resumed function call
-4. The witness **gets paid**, which is what makes the oversight real rather than theatre
+4. The witness **gets paid**, which is what makes the oversight real rather than theatre — [a real HBAR transfer per decision](https://hashscan.io/testnet/transaction/0-0-10349667-1788678540-559498045), priced from the seconds of attention actually spent, **and a refusal is paid exactly the same as an approval**
 
 Their default preset carries no liveness. We did not build on it because it drags in the Workflow SDK and the Vercel AI SDK, assumes a chat workflow, and has no hook for the payment leg, the HCS write, or the nullifier comparison.
 
