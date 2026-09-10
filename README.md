@@ -139,8 +139,8 @@ Every row is a link to a file range or a public explorer. Nothing here asks you 
 
 | Claim | Verify here |
 |---|---|
-| Evidence topic exists with **no admin key** | [HashScan `0.0.10359381`](https://hashscan.io/testnet/topic/0.0.10359381) |
-| The running hash chain verifies offline, from genesis | `bun verify/bin/verify.ts --topic 0.0.10359381` |
+| Evidence topic exists with **no admin key** | [HashScan `0.0.10390147`](https://hashscan.io/testnet/topic/0.0.10390147) |
+| The running hash chain verifies offline, from genesis | `bun verify/bin/verify.ts --topic 0.0.10390147` |
 | …and the implementation is dependency-free | [`verify/package.json`](verify/package.json) — empty `dependencies` |
 | The Java-framing footgun is real, not folklore | [`verify/src/runningHash.ts:56-62`](verify/src/runningHash.ts) + the failing-naive test in [`verify/test/runningHash.test.ts`](verify/test/runningHash.test.ts) |
 | Tampering is detected, naming the sequence number | [`docs/hashscan-links.md`](docs/hashscan-links.md) |
