@@ -851,7 +851,7 @@ Every non-trivial decision in this repo was made against the primary source, not
 
 - **Hedera:** the running hash is SHA-384 over **Java-serialization-framed** bytes, not the documented field list. Also, `@hiero-ledger/sdk@2.85.0` does not surface `topicRunningHashVersion` even though the protobuf defines it, so `confirmAttestation` reads the version from the mirror node and reports a mismatch rather than guessing.
 - **World:** the docs contradict themselves on nullifier stability, and the answer decides whether our core security property is real. Separately, iOS Sandbox enrollment silently requires an **email-based Portal account**, a requirement that appears on no docs page and returns zero search results.
-- **Circle / x402:** `createClientHederaSigner` documents `network` as *"defaults to testnet"*, which reads as though the short form is accepted. Passing `'testnet'` throws `Unsupported Hedera network: testnet`; it requires the CAIP-2 form.
+- **Circle / x402:** `createClientHederaSigner` documents `network` as *"defaults to testnet"*, which reads as though the short form is accepted. Passing `'testnet'` throws `Unsupported Hedera network: testnet`; it requires the CAIP-2 form. Separately, `*.circle.com` is **intermittently** DNS-intercepted on some networks: the same Discovery API request succeeded under `curl` and failed under Bun with `CERT_HAS_EXPIRED` seconds later. Intermittent reads as a code fault, so `fetchCatalog()` retries and names the interception explicitly.
 
 ---
 
