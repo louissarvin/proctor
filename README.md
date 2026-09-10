@@ -178,16 +178,33 @@ Per Hedera's documentation: *"if no adminKey is specified the topic is immutable
 
 ### The records on it
 
-| Seq | Outcome | Bytes | `wid` | `ind` |
+The log grows every time anyone runs `bun run demo`, so rather than a table that
+goes stale, here is how to read it yourself:
+
+```bash
+curl -s "https://testnet.mirrornode.hedera.com/api/v1/topics/0.0.10390147/messages?limit=100&order=asc" \
+  | jq -r '.messages[] | .message | @base64d | fromjson
+           | "\(.sq)  \(.out)  wid=\(.wid // "null")  ind=\(.ind)  wa=\(.wa)"'
+```
+
+A record from an approval, and one from a refusal:
+
+| `sq` | `out` | `wid` | `ind` | `wa` |
 |---|---|---|---|---|
-| 1 | APPROVE | 702 | present | crypto |
-| 2 | REFUSE | 621 | **null** | policy |
-| 3 | EXPIRE | 619 | **null** | policy |
-| 4 | APPROVE | 702 | present | crypto |
+| 30 | APPROVE | `8928af4e…` | crypto | proof |
+| 16 | REFUSE | **null** | policy | token |
 
-All under the 1024-byte single-chunk ceiling, so each is one sequence number and one consensus timestamp.
+`wid: null` on a refusal is **correct, not missing**: refuse is the default outcome and
+requires no proof. Requiring a liveness proof to press a stop button would put a failure
+mode between a person and a brake pedal. `wa` records which of the two actually
+authenticated the witness, so the record never overstates what was proven.
 
-`wid: null` on a refusal is **correct, not missing**: refuse is the default outcome and requires no proof. Requiring a liveness proof to press a stop button would put a failure mode between a person and a brake pedal.
+`sq` starts at 15 rather than 1 because this issuer wrote to an earlier topic before this
+one existed. The completeness check bounds its claim to the range a log can actually speak
+to, so records filed on a previous topic are never reported as withheld.
+
+Every record is under the 1024-byte single-chunk ceiling, so each is one sequence number
+and one consensus timestamp.
 
 ### Tamper detection, run against that exact topic
 
