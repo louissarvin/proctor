@@ -215,6 +215,148 @@ and one consensus timestamp.
 
 The second row is the product in one line: **an inconvenient refusal cannot be quietly removed.**
 
+### The harder question: not "was it altered" but "is it all there"
+
+Everything above proves **integrity**. None of it proves **completeness**, and those are
+different claims. An operator suppressing an inconvenient refusal does not need to forge
+anything. They simply never submit it. No hash breaks, no signature fails, the chain over
+what *was* submitted stays pristine, and `verify` prints PASS.
+
+That is the honest hole in every tamper-evident log, and it is the one a deployer would
+actually use.
+
+Proctor closes it by numbering decisions densely per org at **issue** time and signing that
+number into the attestation as `sq`. A withheld record becomes a hole in a sequence, and the
+operator cannot renumber around it because the neighbouring numbers are already committed to
+a topic with no admin key under a timestamp they did not choose.
+
+```
+PASS  25 messages, chain intact from genesis.
+      No message was inserted, removed, reordered, or altered.
+
+FAIL  completeness: 1 decision(s) never reached this log.
+      missing issuance number(s): 7
+      The chain is intact, so nothing was deleted. Something was never written.
+```
+
+The check runs **offline against the mirror node**, in the same zero-dependency verifier, so
+the party being audited is not the one telling you their evidence is complete.
+
+| Question | Answered by | Catches |
+|---|---|---|
+| Was it altered? | running hash chain | insertion, removal, reordering, edits |
+| Is it all there? | dense signed issuance numbers | a decision that was never written |
+
+**What it still does not prove, stated rather than hidden.** An operator can stop writing
+entirely from some point on, and a trailing absence is indistinguishable from "nothing further
+happened". Suppression in the middle is caught; abandonment is merely loud. A test asserts that
+residual weakness explicitly, so nobody later "fixes" it into an overclaim.
+
+Two details that took a live run to get right, both now tested:
+
+- **`sq` is dense per issuer, not per topic.** Checking density across a shared topic without
+  grouping invents gaps wherever two orgs interleave and reads a second org's `#1` as a
+  duplicate. Both are false accusations of withholding evidence, which is worse than no check.
+  We group by the operator nullifier `on`, already in every record, so it costs no bytes.
+- **The range checked is `min..max`, never `1..max`.** Records written before this field
+  existed carry no `sq`, and a mirror query window may not reach the first one. Starting at 1
+  would report records that are merely outside the view as suppressed.
+
+## Who uses it, and where
+
+Four surfaces, one per role. None of them need a terminal.
+
+| Who | Where | What they do |
+|---|---|---|
+| **Operator** | `/operator` | Describe an action, watch policy decide, hand it to a phone |
+| **Witness** | `/w/<token>` | Approve or refuse on a phone, in under a minute |
+| **Auditor** | `/console` | Read the evidence, re-verify it against Hedera without trusting us |
+| **Agent developer** | `POST /v1/gate/decisions` | Integrate the gate. It is an HTTP 402, not an SDK |
+| **MCP agent** | [`mcp/`](mcp) | One tool, `request_human_approval`. Claude Desktop, Cursor, anything MCP |
+
+Full walkthrough: **[`docs/USING_PROCTOR.md`](docs/USING_PROCTOR.md)**. Where this goes next, and what we deliberately will not build: **[`docs/ROADMAP.md`](docs/ROADMAP.md)**.
+
+The operator console is the screen that makes this a product rather than a set of
+scripts, and it is honest about its one shortcut: it opens decisions **without settling a
+payment**, says so in its own API response (`paid: false`), and is **off unless
+`DEMO_MODE=true`**. The paid path is unchanged and unbypassed — the witness token is a
+bearer credential the gate never returns to the payer, which is why `a2a.SendMessage`
+also refuses with `-32601` rather than opening a decision for free.
+
+## The payment flow
+
+Two paid calls, both x402 v2, both settled by a facilitator rather than by us.
+
+**1. The gate — a flat fee to interrupt a machine.**
+
+```
+POST /v1/gate/decisions                    (unpaid)
+  → 402 Payment Required
+    payment-required: <base64>             the challenge is a HEADER, not the body
+```
+
+The agent decodes the header, **verifies the offer we signed**, picks a rail, signs a
+payment payload, and retries. The facilitator verifies and settles; we never touch the
+buyer's key.
+
+```
+POST /v1/gate/decisions                    (with payment)
+  → 200  { decisionId, humanLine, decisionHash, expiresAt }
+```
+
+**2. The release — priced from the seconds of human attention actually spent.**
+
+```
+POST /v1/gate/decisions/:id/release
+```
+
+Flat-rate for the interrupt, metered for the attention, and linear in review seconds. A
+decision that **expired** meters to zero: nobody looked at it, so no human time is owed. An
+approval or refusal always bills something, because a human did look — a floor applies,
+since x402 cannot quote a zero amount and a free release would be free oversight.
+
+**Where each leg settles**
+
+| Leg | Payer → payee | Rail | Finality |
+|---|---|---|---|
+| Gate | agent → treasury | Hedera via **Blocky402**, or Arc via **Circle Gateway** | Hedera: on chain, final. Arc: committed to a batch |
+| Release | agent → treasury | same | same |
+| **Witness fee** | operator → witness | **direct HBAR, no facilitator** | on chain, final |
+| **Retainer** | operator → witness | **Scheduled Transaction**, Hedera's clock | fires without us |
+
+The machine pays through infrastructure. The human is paid directly.
+
+**The `payment-required` header, decoded from a live 402:**
+
+```json
+{
+  "x402Version": 2,
+  "accepts": [
+    { "scheme": "exact", "network": "hedera:testnet",
+      "amount": "420000", "asset": "0.0.10394781",
+      "payTo": "0.0.10349677", "maxTimeoutSeconds": 180,
+      "extra": { "feePayer": "0.0.7162784" } },
+    { "scheme": "exact", "network": "eip155:5042002",
+      "amount": "420000", "asset": "0x3600000000000000000000000000000000000000",
+      "payTo": "0xB73837E8…6Eb10", "maxTimeoutSeconds": 604900,
+      "extra": { "name": "GatewayWalletBatched", "verifyingContract": "0x0077777d…",
+                 "minValiditySeconds": 604800 } }
+  ],
+  "extensions": { "offer-receipt": { … }, "payment-identifier": { … } }
+}
+```
+
+Reproduce it:
+
+```bash
+curl -s -i -X POST http://localhost:3700/v1/gate/decisions \
+  -H 'content-type: application/json' \
+  -d '{"action":{"kind":"transfer","amount":"41200.00"}}' \
+  | grep -i '^payment-required' | cut -d' ' -f2 | base64 -d | jq
+```
+
+Full artefact list, with every transaction id: [`docs/hashscan-links.md`](docs/hashscan-links.md).
+
 ### The gate settles through Blocky402
 
 Hedera's qualification bullet names one facilitator. `extra.feePayer` is injected by the library from that facilitator's own `/supported` response, so it identifies the settling facilitator **as a fact rather than a claim**:
