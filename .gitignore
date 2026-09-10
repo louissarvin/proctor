@@ -8,3 +8,12 @@ dist/
 .nitro/
 .tanstack/
 generated/
+
+# Facilitator capability cache. Regenerated at boot, never evidence.
+.cache/
+
+# Assistant tooling and scratch state. Not part of the product.
+.claude/
+CLAUDE.md
+**/CLAUDE.md
+.playwright-mcp/
