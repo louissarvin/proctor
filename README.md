@@ -688,11 +688,62 @@ Full write-up, with nineteen dated and reproducible items across all five requir
 
 | Component | How Proctor uses it | Status |
 |---|---|---|
-| **Per-second meter** | The witness is billed for real seconds of human attention, streamed to the agent at 4Hz over SSE. A single $0.42 payout does not need Nanopayments; a per-second meter does | Meter live, settlement pending USDC |
-| **Circle Wallets** | Witnesses are paid into developer-controlled wallets they never signed up for | Designed, not yet settled |
+| **Arc as a second payment rail** | Every 402 advertises `exact` on `eip155:5042002` alongside Hedera. Settled through **Circle's Gateway facilitator**, which serves Arc; USDC is the gas token and the asset, at the ERC-20 interface `0x3600…0000` | **Live on the wire** |
+| **`GatewayEvmScheme`** | Not `ExactEvmScheme`. The base class drops `supportedKind.extra`, and Gateway needs `verifyingContract`, `name` and `version` to reach the buyer or they sign against the wrong EIP-712 domain and the signature fails to verify for no visible reason | Live |
+| **Capability cache** | `/supported` answers are cached per facilitator. A network that intermittently intercepts `*.circle.com` can no longer silently delete the Arc rail at boot. **Capabilities only** — never `verify` or `settle`, so it can never make a payment look settled | Live |
+| **Per-second meter** | The witness is billed for real seconds of human attention, streamed to the agent at 4Hz over SSE. A single $0.42 payout does not need Nanopayments; a per-second meter does | Live. A real 10s review billed $0.021275 |
+| **Gateway balance** | Nanopayments spend from a Gateway deposit, not the wallet balance — a funded wallet with no Gateway balance fails with an error that reads like a signing problem | Funded, and spent from |
 | **Why Paymaster is absent** | Circle Paymaster has no Arc support, and on Arc gas is already USDC, so it is structurally redundant | Stated rather than silent |
 
-**Honest scope: Arc is the least-developed leg.** The meter runs and is visible on camera; the settlement path is blocked on testnet USDC, not on code.
+### Zero Hedera services exist in Circle's Agent Marketplace
+
+Circle's [Agent Marketplace](https://agents.circle.com/services) is a curated catalog
+where agents discover and pay for x402 services. We queried its public Discovery API,
+no key required, and sampled 50 live services:
+
+```
+   49  Base        31  Solana      30  Polygon     18  Ethereum
+   18  Avalanche   18  Arbitrum    18  Optimism    18  Unichain
+
+Hedera services listed: NONE
+```
+
+Every listed service settles on an EVM chain or Solana. Reproduce it with
+`cd backend && bun run marketplace`.
+
+Our listing prerequisites are already met: a 402-returning service, a published OpenAPI
+spec at `/openapi.json`, and a payout account. The remaining requirement is a public
+URL, since listings are continuously health-checked. Detail in
+[`docs/circle-marketplace.md`](docs/circle-marketplace.md).
+
+#### The Arc finding we got wrong first, and how
+
+We spent a day believing Arc was unsupported by x402, because the boot preflight kept
+dropping it. It was not. **We were only ever asking Blocky402**, which serves Hedera and not
+Arc, and reading "the one facilitator we asked does not serve this" as "no facilitator serves
+this". Circle's own Gateway facilitator serves Arc testnet, and says so publicly:
+
+```bash
+curl -s https://gateway-api-testnet.circle.com/v1/x402/supported \
+  | jq '.kinds[] | select(.network=="eip155:5042002")'
+```
+
+Two things made this hard to see, and both are now handled rather than worked around:
+
+- **The SDK's own example points at a host that does not resolve.** `@circle-fin/x402-batching`
+  documents `url: "https://gateway.circle.com"`; that domain returns a Cloudflare origin error
+  and fails to resolve. The working host is `gateway-api-testnet.circle.com`, which appears in
+  Circle's seller quickstart rather than in the package.
+- **`*.circle.com` is intermittently TLS-intercepted**, and `initialize()` *swallows* a
+  facilitator that throws. So one flaky call silently removed an entire payment rail and the
+  only symptom was "no facilitator support" for a network that is fully supported. Measured at
+  roughly one boot in three. `getSupported()` is now retried with backoff, and the dropped-entry
+  warning says *"either genuinely unsupported, or its /supported call failed at boot"* instead of
+  asserting the first.
+
+**Arc now settles.** The Gateway balance is funded and a real payment has moved through it:
+`2.000000 → 1.580000` USDC, exactly the $0.42 gate price. What remains unshipped there is
+mainnet, which does not exist yet.
 
 ---
 
