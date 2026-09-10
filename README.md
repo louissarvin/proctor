@@ -777,39 +777,19 @@ This converts *"Circle is down so nothing works"* into *"Circle is down so the d
 
 ## Architecture
 
-```mermaid
-graph TD
-    subgraph Agent [Paying agent]
-        A[Agent run] -->|1. free policy check| EV[POST /v1/gate/evaluate]
-        A -->|2. pays 402| GATE[POST /v1/gate/decisions]
-        A -->|3. holds terminal open| SSE[GET /decisions/:id/stream]
-    end
+![Proctor architecture](docs/architecture.png)
 
-    subgraph API [Fastify on Bun]
-        EV --> POL[Policy engine, 4 predicates]
-        GATE --> X402[x402 paywall + boot preflight]
-        X402 --> DEC[Decision, server clock]
-        DEC --> ROTA[Witness selection]
-        ROTA --> PUSH[Web Push, VAPID]
-        RESP[POST /v1/witness/.../respond] --> VERIFY[7 assertions]
-        VERIFY --> ATT[Attestation: RFC 8785 -> EIP-712]
-        TTL[TTL sweeper, 1Hz] --> DEC
-    end
+Source: [`docs/architecture.mmd`](docs/architecture.mmd) · also available as
+[SVG](docs/architecture.svg). Rendered from source, so it cannot drift from what is
+written down — which it had, badly: the previous version predated the Arc rail, the
+witness payout, the retainer and the completeness check, showed the wrong topic and the
+wrong settlement asset, and did not mention Circle anywhere.
 
-    subgraph Phone [Witness]
-        PUSH --> PWA[Witness PWA]
-        PWA --> RP[RP signature, per decision]
-        PWA --> RESP
-    end
-
-    subgraph Chains
-        X402 --> BLOCKY[Blocky402 facilitator]
-        BLOCKY --> HTS[USDC 0.0.429274 on Hedera]
-        ATT --> HCS[HCS topic 0.0.10359381, no admin key]
-    end
-
-    HCS --> VER[verify/ zero-dependency CLI]
-```
+Read it in five parts: the agent stops and **checks the offer is signed before paying**;
+it settles on **either rail, through a different facilitator each**; a human on a phone
+proves liveness bound to the decision hash; **the human is paid directly, with no
+facilitator in the way**; and the outcome lands on a log anyone can check for both
+integrity and completeness.
 
 **Postgres is the index. HCS is the truth.** The mirror node cannot filter on anything inside a message payload, so every console query is served from Postgres and **every row carries the sequence number and consensus timestamp** needed to re-fetch and re-verify independently.
 
