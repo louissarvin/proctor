@@ -1,54 +1,40 @@
-# Use a Node.js base image
-FROM node:18.15-slim as builder
+# Bun, not Node: this backend runs TypeScript directly, no build step, and
+# the Prisma client's generator targets `runtime = "bun"` (schema.prisma).
+# A Node base image cannot run either of those.
+FROM oven/bun:1 AS base
+WORKDIR /app
 
-RUN apt-get update -y
-RUN apt-get install -y openssl
+# --- deps ---------------------------------------------------------------
+# Separate layer so `bun install` is skipped on rebuilds that only change
+# application code.
+FROM base AS deps
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
 
-# Set the working directory in the Docker container
-WORKDIR /usr/src/app
-
-# Copy package.json and package-lock.json (or npm-shrinkwrap.json) to the working directory
-COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "./"]
-
-# Install dependencies including 'devDependencies' for building
-RUN npm install --silent
-
-# Copy the rest of your application's source code
+# --- build ----------------------------------------------------------------
+FROM base AS build
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# prisma/generated/ is gitignored (never commit a generated client), so it
+# must exist by the time the image starts. Prisma 7 with @prisma/adapter-pg
+# needs no native query-engine binary here -- it is a thin wrapper over `pg`,
+# so this step needs no OpenSSL and no binaryTargets juggling.
+RUN bunx prisma generate --config prisma/prisma.config.ts
 
-# Use Prisma to generate client
-RUN npx prisma generate
-
-# Start a new stage to keep the final image small
-FROM node:18.15-slim
-
-# Environment variable to set node environment to production
+# --- runtime ----------------------------------------------------------------
+FROM base AS runtime
 ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=build /app ./
 
-# Set the working directory in the Docker container
-WORKDIR /usr/src/app
+# APP_PORT is the app's own env var (main-config.ts), not Railway's PORT.
+# Set APP_PORT=3700 in the Railway service, or change this to match.
+EXPOSE 3700
 
-# Copy package.json and package-lock.json (or npm-shrinkwrap.json)
-COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "./"]
-
-# Install only production dependencies
-RUN npm install --production --silent
-
-# Copy the application source files (JavaScript) from the builder stage
-COPY --from=builder /usr/src/app ./
-
-# Copy Prisma schema and migrations
-COPY prisma ./prisma
-
-# Generate Prisma client
-RUN npx prisma generate
-
-# Use non-root user for better security
-RUN chown -R node /usr
-USER node
-
-# Expose the port your app runs on
-EXPOSE 3677
-
-# Command to run your app
-CMD ["node", "index.js"]
+# DATABASE_URL and JWT_SECRET are required; main-config.ts throws at boot
+# without them. Every other value is optional -- `bun run doctor` reports
+# exactly what a missing one costs, rather than the app crashing on it.
+#
+# One process starts the API AND all three workers (TTL sweeper, evidence
+# backfill, error-log cleanup) -- see index.ts. No separate worker service.
+CMD ["bun", "index.ts"]
