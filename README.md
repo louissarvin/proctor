@@ -676,7 +676,7 @@ The migration guide is newer and version-qualified, so it is the correction. **T
 
 That is why `hasStableNullifier()` exists, and why a test asserts `hasStableNullifier('ORB_PRESENCE') === false`. If we are ever forced onto the v4 path, the test suite itself records that the property degraded.
 
-Full write-up, with eleven dated and reproducible items across all five required sections: **[`WORLD_FEEDBACK.md`](WORLD_FEEDBACK.md)**.
+Full write-up, with nineteen dated and reproducible items across all five required sections: **[`WORLD_FEEDBACK.md`](WORLD_FEEDBACK.md)**.
 
 #### Trade-offs we accepted for World
 
