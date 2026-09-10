@@ -896,7 +896,8 @@ Named so nobody wonders whether we forgot.
 - **A witness marketplace.** The word is **rota**. Witnesses hold an org-issued role. Nobody lets an anonymous stranger approve EUR 41,200, and Proctor does not propose that they should.
 - **On-chain verification of any World proof.** Impossible for Selfie Check on any chain, and there is no World ID deployment on Hedera at all.
 - **Building on `@worldcoin/human-in-the-loop`.** See prior art below. Referencing it precisely is worth more than using it.
-- **ERC-8004, UCP, custom HTS fee schedules.** Each is strictly worse than a point we already have. ERC-8004 in particular is 5–8 hours for a weaker version of what HCS-14 gives in 1–2.
+- **UCP.** A directory standard we would be the only member of. The honest finding is that *no* directory serves Hedera today, evidenced above, which is worth more than a self-referential listing.
+  <br>*(ERC-8004 and custom HTS fee schedules were on this list and are now shipped — see the Arc identity and HTS sections. Kept visible rather than quietly deleted.)*
 - **A generic policy language.** Four predicates. Anything more is a product, not a demo.
 - **Redis, queues, workers.** One Fastify process, one Postgres, one conditional UPDATE. The architecture is correct under concurrency without them.
 
