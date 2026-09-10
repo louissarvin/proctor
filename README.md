@@ -843,7 +843,7 @@ Every non-trivial decision in this repo was made against the primary source, not
 | **RFC 8292 (VAPID)** | ES256 on P-256, `exp` capped at 24h. Push TTL is set to the remaining decision deadline, because a notification arriving after expiry is worse than none |
 | **WHATWG SSE** | An event is dispatched by a **blank line**; miss it and the terminal looks hung. `x-accel-buffering: no`, because nginx would otherwise hold the whole countdown |
 | **PostgreSQL transaction isolation** | Under READ COMMITTED the `WHERE` clause is **re-evaluated** after blocking, so a conditional `updateMany` is a correct arbiter. No transactions, no `SELECT FOR UPDATE`, no Redis |
-| **EU AI Act Art. 12 and 14** | Art 14(5)'s "**two natural persons**" is a far stronger hook than "demonstrate oversight", and it justifies recording both nullifiers. [`docs/regulatory-mapping.md`](docs/regulatory-mapping.md) |
+| **EU AI Act Art. 12 and 14** | Reading 14(5) to the end changed the claim. It opens *"For high-risk AI systems referred to in point 1(a) of Annex III"* — **remote biometric identification** — so it does **not** bind a supplier-payment agent. Art 12 and 14(4) do. We build to 14(5) regardless and say exactly where it applies. [`docs/regulatory-mapping.md`](docs/regulatory-mapping.md) |
 | **Hedera consensus protobuf** | The documented field list is necessary but **not sufficient**; the Java framing is the difference between a verifier that works and one that never matches |
 | **A2A specification** | `TASK_STATE_AUTH_REQUIRED` is "an interrupted state", which is one-to-one with a dispatched decision |
 
