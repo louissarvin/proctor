@@ -390,6 +390,19 @@ Hedera's qualification bullet names one facilitator. `extra.feePayer` is injecte
 | Treasury (`payTo`) | [`0.0.10349677`](https://hashscan.io/testnet/account/0.0.10349677) | ECDSA secp256k1 |
 | Agent (pays the gate) | [`0.0.10359475`](https://hashscan.io/testnet/account/0.0.10359475) | ECDSA secp256k1 |
 
+### Arc testnet: ERC-8004 agent identity
+
+| | |
+|---|---|
+| Agent ID | **[891434](https://testnet.arcscan.app/token/0x8004A818BFB912233c491871b3d84c89A494BD9e/instance/891434)** |
+| Registry | [`0x8004A818…BD9e`](https://testnet.arcscan.app/address/0x8004A818BFB912233c491871b3d84c89A494BD9e), Circle's canonical deployment |
+| Transaction | [`0xab73e419…d30ed9`](https://testnet.arcscan.app/tx/0xab73e419e168905b3e953d3e5ffd0ca79cfa398a775239bc99127daa86d30ed9) |
+
+The agent carries the **native identifier on each chain**: HCS-14 on Hedera, ERC-8004 on
+Arc. We previously declined ERC-8004 because a self-deployed registry is weaker than a
+canonical one and Hedera has none. Arc ships canonical registries, so that objection does
+not apply there. Both are published at `/.well-known/proctor.json`.
+
 ### Agent identity, HCS-14 (draft)
 
 ```
