@@ -36,9 +36,28 @@ function WitnessScreen() {
   const [rpContext, setRpContext] = useState<RpContext | null>(null);
   const [result, setResult] = useState<RespondResult | null>(null);
   const [error, setError] = useState<{ title: string; detail: string } | null>(null);
-  // IDKit's own debug logging. Read it in the browser console: the widget
-  // reports `generic_error` while the real detail only appears there.
-  useEffect(() => { setDebug(true); }, []);
+  // IDKit's own debug logging, forwarded to the server. `onError` only
+  // reports a category; the real detail is in these console lines. Console
+  // only, no fetch patching -- a prior version wrapped window.fetch here and
+  // broke every API call because it added a header the backend hadn't
+  // allow-listed for CORS. Console forwarding carries no such risk.
+  useEffect(() => {
+    setDebug(true);
+    const orig = { error: console.error, warn: console.warn, log: console.log };
+    const forward = (level: 'error' | 'warn' | 'log') => (...args: unknown[]) => {
+      const text = args.map((a) => {
+        try { return typeof a === 'string' ? a : JSON.stringify(a); } catch { return String(a); }
+      }).join(' ');
+      if (/idkit|world|bridge|proof|rp_|credential|nonce/i.test(text)) {
+        reportClientError(token, `console.${level}`, text.slice(0, 500));
+      }
+      orig[level](...args);
+    };
+    console.error = forward('error');
+    console.warn = forward('warn');
+    console.log = forward('log');
+    return () => { console.error = orig.error; console.warn = orig.warn; console.log = orig.log; };
+  }, [token]);
 
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [showRecord, setShowRecord] = useState(false);
