@@ -30,7 +30,7 @@ function Console() {
   const attested = resolved.filter((r) => r.sequenceNumber).length;
 
   return (
-    <main className="min-h-dvh bg-neutral-950 px-6 py-8 text-neutral-200">
+    <main className="min-h-dvh bg-neutral-950 px-6 pt-28 pb-8 text-neutral-200">
       <div className="mx-auto max-w-5xl">
         <header className="flex items-baseline justify-between border-b border-neutral-800 pb-4">
           <div>

@@ -97,7 +97,7 @@ function Operator() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 px-6 py-10">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 px-6 pt-28 pb-10">
       <div className="mx-auto max-w-3xl">
         <p className="text-xs tracking-widest text-neutral-500">OPERATOR CONSOLE</p>
         <h1 className="mt-2 text-2xl font-semibold">Hold an agent on a human decision</h1>

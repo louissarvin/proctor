@@ -10,6 +10,7 @@ import HeroUIProvider from '../providers/HeroUIProvider'
 import LenisSmoothScrollProvider from '../providers/LenisSmoothScrollProvider'
 import { ThemeProvider } from '../providers/ThemeProvider'
 import ErrorPage from '../components/ErrorPage'
+import FloatingNav from '../components/FloatingNav'
 
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 
@@ -67,6 +68,20 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         rel: 'stylesheet',
         href: appCss,
       },
+      // SVG favicon first: every modern browser prefers it. The .ico stays as
+      // the fallback for the handful that don't (old Safari), so nobody sees
+      // a blank tab -- without it, the browser was silently falling back to
+      // the starter template's leftover React icon instead.
+      {
+        rel: 'icon',
+        href: '/assets/logo-index.svg',
+        type: 'image/svg+xml',
+      },
+      {
+        rel: 'icon',
+        href: '/favicon.ico',
+        sizes: '32x32',
+      },
     ],
   }),
 
@@ -100,6 +115,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <ThemeProvider>
           <HeroUIProvider>
             <LenisSmoothScrollProvider />
+            <FloatingNav />
             {children}
             <TanStackDevtools
               config={{
