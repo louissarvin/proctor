@@ -307,7 +307,14 @@ export const gateRoutes: FastifyPluginCallback = (app: FastifyInstance, _opts, d
     });
     if (!decision) return handleError(reply, 404, 'Decision not found', 'DECISION_NOT_FOUND');
 
-    reply.raw.writeHead(200, SSE_HEADERS);
+    // writeHead() bypasses Fastify's reply lifecycle, so @fastify/cors's
+    // onSend hook never runs on this route. Reflect Origin manually, same
+    // as the cors plugin's `origin: true` policy does for every other route.
+    const origin = request.headers.origin;
+    const corsHeaders = origin
+      ? { 'access-control-allow-origin': origin, vary: 'Origin', 'access-control-allow-credentials': 'true' }
+      : {};
+    reply.raw.writeHead(200, { ...SSE_HEADERS, ...corsHeaders });
 
     const send = (frame: DecisionFrame, event?: string) => {
       reply.raw.write(formatSse({ event, data: frame, id: String(Date.now()) }));
