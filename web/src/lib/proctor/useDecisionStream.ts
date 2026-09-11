@@ -24,14 +24,23 @@ export function useDecisionStream(decisionId: string | null): StreamState {
 
   useEffect(() => {
     if (!decisionId) return;
+    let resolved = false;
 
     const source = new EventSource(`${env.VITE_API_URL}/v1/gate/decisions/${decisionId}/stream`);
     sourceRef.current = source;
 
+    const resolve = (state: string, outcome: StreamState['outcome'], reviewMs: number) => {
+      if (resolved) return;
+      resolved = true;
+      setS((p) => ({ ...p, state, outcome, reviewMs, connected: false }));
+      source.close();
+      clearInterval(poll);
+    };
+
     source.addEventListener('open', () => setS((p) => ({ ...p, connected: true })));
 
     source.addEventListener('message', (e) => {
-      const frame = JSON.parse((e as MessageEvent).data);
+      const frame = JSON.parse(e.data);
       if (frame.type === 'meter') setS((p) => ({ ...p, meter: frame }));
       if (frame.type === 'state') setS((p) => ({ ...p, state: frame.state }));
     });
@@ -39,14 +48,31 @@ export function useDecisionStream(decisionId: string | null): StreamState {
     // EventSource auto-reconnects on close. The server ends the stream after
     // this frame, so without close() the browser reconnects forever.
     source.addEventListener('resolved', (e) => {
-      const frame = JSON.parse((e as MessageEvent).data);
-      setS((p) => ({ ...p, outcome: frame.outcome, reviewMs: frame.reviewMs, connected: false }));
-      source.close();
+      const frame = JSON.parse(e.data);
+      resolve(
+        frame.outcome === 'APPROVE' ? 'APPROVED' : frame.outcome === 'REFUSE' ? 'REFUSED' : 'EXPIRED',
+        frame.outcome,
+        frame.reviewMs,
+      );
     });
 
     source.addEventListener('error', () => setS((p) => ({ ...p, connected: false })));
 
-    return () => source.close();
+    // Safety net: a single stalled or dropped stream must never be the only
+    // path to "resolved" on a live demo. Poll the same record the stream is
+    // built from until this decision is terminal, then stop.
+    const poll = setInterval(async () => {
+      if (resolved) return;
+      try {
+        const r = await fetch(`${env.VITE_API_URL}/v1/evidence/decisions/${decisionId}`,
+          { headers: { 'ngrok-skip-browser-warning': '1' } });
+        const body = await r.json();
+        const d = body?.data as { state?: string; outcome?: StreamState['outcome']; reviewMs?: number } | undefined;
+        if (d?.outcome) resolve(d.state ?? 'APPROVED', d.outcome, d.reviewMs ?? 0);
+      } catch { /* transient network hiccup, next tick retries */ }
+    }, 2000);
+
+    return () => { source.close(); clearInterval(poll); };
   }, [decisionId]);
 
   return s;
